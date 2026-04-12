@@ -36,7 +36,7 @@ SEASONS = [2024, 2025]
 
 def main():
     logger.info("=" * 60)
-    logger.info("CubsEdge Benchmark Seed")
+    logger.info("CubsStats Benchmark Seed")
     logger.info("=" * 60)
 
     init_db()

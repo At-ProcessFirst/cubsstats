@@ -4,7 +4,7 @@ import os
 
 
 class Settings(BaseSettings):
-    database_url: str = "sqlite:///./cubsedge.db"
+    database_url: str = "sqlite:///./cubsstats.db"
     environment: str = "development"
     cors_origins: str = "http://localhost:5173"
     cubs_team_id: int = 112

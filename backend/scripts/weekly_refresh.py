@@ -46,7 +46,7 @@ settings = get_settings()
 
 def main():
     logger.info("=" * 60)
-    logger.info("CubsEdge Weekly Refresh")
+    logger.info("CubsStats Weekly Refresh")
     logger.info("=" * 60)
 
     init_db()

@@ -1,64 +1,84 @@
-# Render Blueprint — deploy with "render blueprint launch"
 databases:
-  - name: cubsedge-db
+  - name: cubsstats-db
     plan: free
-    databaseName: cubsedge
-    user: cubsedge
+    databaseName: cubsstats
+    user: cubsstats
 
 services:
-  # ── Backend API ──────────────────────────────────────────────
   - type: web
-    name: cubsedge-api
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    name: cubsstats-api
+    runtime: python
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: cubsedge-db
-          property: connectionString
+          name: cubsstats-db
+          property: connectionURI
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: ENVIRONMENT
         value: production
       - key: CORS_ORIGINS
-        value: https://cubsstats.live,https://www.cubsstats.live
-      - key: ANTHROPIC_API_KEY
-        sync: false  # Set manually in Render dashboard
+        value: https://cubsstats.live
+      - key: PYTHON_VERSION
+        value: 3.11.9
 
-  # ── Cron scheduler ───────────────────────────────────────────
-  - type: worker
-    name: cubsedge-scheduler
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    dockerCommand: python -m scripts.scheduler
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: cubsedge-db
-          property: connectionString
-      - key: ENVIRONMENT
-        value: production
-      - key: ANTHROPIC_API_KEY
-        sync: false
-
-  # ── Frontend (static site) ──────────────────────────────────
   - type: web
-    name: cubsedge-frontend
+    name: cubsstats-web
     runtime: static
     buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: ./frontend/dist
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: public, max-age=0, must-revalidate
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://cubsstats-api.onrender.com
     routes:
-      - type: rewrite
-        source: /api/*
-        destination: https://cubsedge-api.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: cron
+    name: cubsstats-game-watcher
+    runtime: python
+    schedule: "0 22-23,0-4 * * *"
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && python scripts/game_watcher.py
     envVars:
-      - key: VITE_API_URL
-        value: https://cubsedge-api.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cubsstats-db
+          property: connectionURI
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+  - type: cron
+    name: cubsstats-statcast-backfill
+    runtime: python
+    schedule: "0 15 * * *"
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && python scripts/statcast_backfill.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cubsstats-db
+          property: connectionURI
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+  - type: cron
+    name: cubsstats-weekly-refresh
+    runtime: python
+    schedule: "0 5 * * 0"
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && python scripts/weekly_refresh.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cubsstats-db
+          property: connectionURI
+      - key: PYTHON_VERSION
+        value: 3.11.9

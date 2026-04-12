@@ -8,7 +8,7 @@ from app.routers import benchmarks, pitching, hitting, defense, team, prediction
 settings = get_settings()
 
 app = FastAPI(
-    title="CubsEdge API",
+    title="CubsStats API",
     description="Cubs sabermetrics ML dashboard — dynamic benchmarks, divergence detection, win predictions",
     version="1.0.0",
 )
@@ -39,7 +39,7 @@ def health():
         db_status = "connected"
     except Exception as e:
         db_status = f"error: {e}"
-    return {"status": "ok", "app": "cubsedge", "database": db_status}
+    return {"status": "ok", "app": "cubsstats", "database": db_status}
 
 
 # Register routers

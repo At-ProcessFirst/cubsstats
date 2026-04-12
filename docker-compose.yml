@@ -7,12 +7,12 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - cubsedge-data:/app/data
-      - cubsedge-models:/app/models
+      - cubsstats-data:/app/data
+      - cubsstats-models:/app/models
     env_file:
       - ./backend/.env.production
     environment:
-      - DATABASE_URL=sqlite:////app/data/cubsedge.db
+      - DATABASE_URL=sqlite:////app/data/cubsstats.db
       - ENVIRONMENT=production
     restart: unless-stopped
     healthcheck:
@@ -26,12 +26,12 @@ services:
     build: ./backend
     command: ["python", "-m", "scripts.scheduler"]
     volumes:
-      - cubsedge-data:/app/data
-      - cubsedge-models:/app/models
+      - cubsstats-data:/app/data
+      - cubsstats-models:/app/models
     env_file:
       - ./backend/.env.production
     environment:
-      - DATABASE_URL=sqlite:////app/data/cubsedge.db
+      - DATABASE_URL=sqlite:////app/data/cubsstats.db
       - ENVIRONMENT=production
     restart: unless-stopped
     depends_on:
@@ -43,15 +43,15 @@ services:
     build: ./backend
     command: ["sh", "-c", "python -m scripts.seed_historical && python -m scripts.seed_benchmarks"]
     volumes:
-      - cubsedge-data:/app/data
-      - cubsedge-models:/app/models
+      - cubsstats-data:/app/data
+      - cubsstats-models:/app/models
     env_file:
       - ./backend/.env.production
     environment:
-      - DATABASE_URL=sqlite:////app/data/cubsedge.db
+      - DATABASE_URL=sqlite:////app/data/cubsstats.db
     profiles:
       - seed  # Only runs with: docker compose --profile seed run seed
 
 volumes:
-  cubsedge-data:
-  cubsedge-models:
+  cubsstats-data:
+  cubsstats-models:

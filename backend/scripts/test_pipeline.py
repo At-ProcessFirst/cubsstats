@@ -86,12 +86,12 @@ def test_api_endpoints():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CubsEdge E2E pipeline test")
+    parser = argparse.ArgumentParser(description="CubsStats E2E pipeline test")
     parser.add_argument("--game-pk", type=int, help="Specific game PK to test")
     args = parser.parse_args()
 
     logger.info("=" * 60)
-    logger.info("CubsEdge End-to-End Pipeline Test")
+    logger.info("CubsStats End-to-End Pipeline Test")
     logger.info("=" * 60)
 
     init_db()

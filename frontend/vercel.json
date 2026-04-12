@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://cubsedge-api.up.railway.app/api/:path*"
+      "destination": "https://cubsstats-api.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",

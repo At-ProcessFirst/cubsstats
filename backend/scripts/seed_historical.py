@@ -125,7 +125,7 @@ def seed_statcast_sample(db, season: int):
 
 def main():
     logger.info("=" * 60)
-    logger.info("CubsEdge Historical Data Seed")
+    logger.info("CubsStats Historical Data Seed")
     logger.info("=" * 60)
 
     init_db()

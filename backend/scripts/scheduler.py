@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scheduler.py — APScheduler-based cron runner for all CubsEdge scheduled jobs.
+scheduler.py — APScheduler-based cron runner for all CubsStats scheduled jobs.
 
 Runs as a long-lived process (docker-compose scheduler service or Render worker).
 
@@ -36,7 +36,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
 )
-logger = logging.getLogger("cubsedge.scheduler")
+logger = logging.getLogger("cubsstats.scheduler")
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +192,7 @@ def weekly_refresh():
 
 def main():
     logger.info("=" * 60)
-    logger.info("CubsEdge Scheduler starting")
+    logger.info("CubsStats Scheduler starting")
     logger.info("=" * 60)
 
     init_db()

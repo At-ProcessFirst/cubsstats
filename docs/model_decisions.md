@@ -1,4 +1,4 @@
-# CubsEdge — ML Model Decisions
+# CubsStats — ML Model Decisions
 
 ## Model 1: Game Outcome (XGBoost Classifier)
 

@@ -100,7 +100,7 @@ def run_post_game_pipeline(game_pk: int, game_data: dict):
 def watch():
     """Main watch loop — poll for game status and trigger pipeline."""
     init_db()
-    logger.info("CubsEdge Game Watcher started")
+    logger.info("CubsStats Game Watcher started")
     logger.info(f"Monitoring Cubs (team ID {settings.cubs_team_id}) games...")
 
     processed_today = set()

@@ -1,4 +1,4 @@
-# CubsEdge — Deployment Guide
+# CubsStats — Deployment Guide
 
 ## Architecture
 
@@ -64,7 +64,7 @@ docker compose logs -f scheduler
 3. Railway auto-detects the Dockerfile
 4. Set environment variables:
    ```
-   DATABASE_URL=sqlite:////app/data/cubsedge.db
+   DATABASE_URL=sqlite:////app/data/cubsstats.db
    ENVIRONMENT=production
    CORS_ORIGINS=https://cubsstats.live
    ANTHROPIC_API_KEY=sk-ant-...
@@ -122,7 +122,7 @@ Or connect Git repo:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | SQLite path (production: `sqlite:////app/data/cubsedge.db`) |
+| `DATABASE_URL` | Yes | SQLite path (production: `sqlite:////app/data/cubsstats.db`) |
 | `ENVIRONMENT` | Yes | `development` or `production` |
 | `CORS_ORIGINS` | Yes | Comma-separated allowed origins |
 | `ANTHROPIC_API_KEY` | No | Claude API key for editorial generation (falls back to data-driven text) |

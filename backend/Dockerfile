@@ -17,7 +17,7 @@ COPY . .
 RUN mkdir -p /app/models /app/data
 
 ENV PYTHONUNBUFFERED=1
-ENV DATABASE_URL=sqlite:////app/data/cubsedge.db
+ENV DATABASE_URL=sqlite:////app/data/cubsstats.db
 
 EXPOSE 8000
 

@@ -29,7 +29,7 @@ settings = get_settings()
 # System prompt — defines the analyst voice
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are the CubsEdge analyst — a sharp, data-driven baseball writer who covers the Chicago Cubs.
+SYSTEM_PROMPT = """You are the CubsStats analyst — a sharp, data-driven baseball writer who covers the Chicago Cubs.
 
 Your voice:
 - Confident but not arrogant. You back every claim with a specific stat and its MLB percentile.

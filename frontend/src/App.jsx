@@ -46,7 +46,7 @@ export default function App() {
             className="text-text-primary font-bold text-lg tracking-widest"
             style={{ fontFamily: 'var(--font-mono)' }}
           >
-            CUBSEDGE
+            CUBSSTATS
           </span>
 
           <nav className="ml-8 flex items-center gap-1">

@@ -165,7 +165,7 @@ def run_pass2(db, target_date: date = None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CubsEdge daily update pipeline")
+    parser = argparse.ArgumentParser(description="CubsStats daily update pipeline")
     parser.add_argument("--pass1", action="store_true", help="Run Pass 1 only (box scores)")
     parser.add_argument("--pass2", action="store_true", help="Run Pass 2 only (Statcast + advanced)")
     parser.add_argument("--date", type=str, help="Target date (YYYY-MM-DD), defaults to yesterday")
