@@ -120,12 +120,15 @@ def mlb_api_get(endpoint: str, params: dict = None) -> dict:
         return resp.json()
 
 
-def fetch_schedule(start_date: date, end_date: date, team_id: int = None) -> list[dict]:
+def fetch_schedule(start_date: date, end_date: date, team_id: int = None,
+                    game_type: str = "R") -> list[dict]:
+    """Fetch game schedule. game_type='R' = regular season only (excludes spring training)."""
     params = {
         "startDate": start_date.isoformat(),
         "endDate": end_date.isoformat(),
         "sportId": 1,
         "hydrate": "team,linescore",
+        "gameType": game_type,
     }
     if team_id:
         params["teamId"] = team_id

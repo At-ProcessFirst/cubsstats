@@ -1,13 +1,8 @@
 import { useMemo } from 'react'
 import { useApi } from '../hooks/useApi'
-import { formatStat } from '../utils/formatting'
 import GradingLegend from '../components/GradingLegend'
 import PredictionRow from '../components/PredictionRow'
 import WinTrendChart from '../components/WinTrendChart'
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, Cell,
-} from 'recharts'
 
 const FEATURE_LABELS = {
   rolling_10g_fip: 'Pitching quality',
@@ -20,24 +15,18 @@ const FEATURE_LABELS = {
   bullpen_usage_3d: 'Bullpen fatigue',
 }
 
-const MOCK_BACKTEST = [
-  { month: 'Apr', accuracy: null, baseline: 50 },
-  { month: 'May', accuracy: null, baseline: 50 },
-  { month: 'Jun', accuracy: null, baseline: 50 },
-  { month: 'Jul', accuracy: null, baseline: 50 },
-  { month: 'Aug', accuracy: null, baseline: 50 },
-  { month: 'Sep', accuracy: null, baseline: 50 },
-]
-
 export default function Predictions() {
-  const { data: predictions } = useApi('/predictions/game-outcome')
-  const { data: winTrend } = useApi('/predictions/win-trend')
-  const { data: regression } = useApi('/predictions/regression-flags')
+  const { data: predictions, error: predError } = useApi('/predictions/game-outcome')
+  const { data: winTrend, error: trendError } = useApi('/predictions/win-trend')
+  const { data: regression, error: regError } = useApi('/predictions/regression-flags')
   const { data: upcoming, loading: upLoading } = useApi('/team/upcoming?limit=10')
   const { data: trendData } = useApi('/team/win-trend')
   const { data: record } = useApi('/team/record')
 
-  const modelReady = predictions?.status !== 'model_not_trained'
+  const gameModelStatus = predictions?.status || 'model_not_trained'
+  const trendModelStatus = winTrend?.status || 'model_not_trained'
+  const regModelStatus = regression?.status || 'no_data'
+  const modelReady = gameModelStatus === 'active'
 
   return (
     <div className="flex flex-col gap-4">
@@ -56,7 +45,8 @@ export default function Predictions() {
           title="Game Outcome"
           model="XGBoost Classifier"
           target="Win/Loss per game"
-          status={predictions?.status}
+          status={gameModelStatus}
+          error={predError}
           baselines={[
             { label: 'Coin flip', value: '50.0%' },
             { label: 'Home advantage', value: '54.0%' },
@@ -67,7 +57,8 @@ export default function Predictions() {
           title="Win Trend"
           model="Ridge Regression"
           target="Next-10-game win total"
-          status={winTrend?.status}
+          status={trendModelStatus}
+          error={trendError}
           baselines={[
             { label: 'Pythagorean alone', value: '±2.1 wins' },
           ]}
@@ -76,23 +67,42 @@ export default function Predictions() {
           title="Regression Detection"
           model="Z-score + Anomaly"
           target="Regression probability"
-          status={regression?.status}
+          status={regModelStatus}
+          error={regError}
           baselines={[
             { label: 'Accuracy target', value: '7/10 correct in 30d' },
           ]}
         />
       </div>
 
+      {/* Info banner when models not trained */}
+      {!modelReady && (
+        <div className="bg-surface rounded-lg border border-white-8 p-4 flex items-center gap-3"
+          style={{ borderLeftWidth: 3, borderLeftColor: '#60A5FA' }}>
+          <span className="text-xl">🧠</span>
+          <div>
+            <p className="text-sm text-text-primary font-medium">
+              ML models are being trained
+            </p>
+            <p className="text-[11px] text-text-secondary mt-0.5">
+              Predictions will appear after sufficient game data is collected. The Game Outcome model
+              needs 30+ games, and the Win Trend model needs 40+ games to produce reliable forecasts.
+              Regression detection is active and runs using z-score analysis against MLB benchmarks.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Win Trend Chart */}
       <WinTrendChart
         data={trendData || []}
         summary={record?.wins != null
-          ? `Cubs are ${record.wins}-${record.losses}. ML projections will appear here once the model is trained in Phase 5.`
+          ? `Cubs are ${record.wins}-${record.losses}. ${modelReady ? '' : 'ML projections will appear once models are trained.'}`
           : 'Win trend data will populate after game data is seeded.'
         }
       />
 
-      {/* Two-col: Upcoming Predictions | Backtesting */}
+      {/* Two-col: Upcoming Predictions | Feature Importance */}
       <div className="grid grid-cols-2 gap-4">
         {/* Upcoming game predictions */}
         <div className="bg-surface rounded-lg border border-white-8 p-4">
@@ -102,14 +112,15 @@ export default function Predictions() {
               UPCOMING GAME PREDICTIONS
             </h3>
             {!modelReady && (
-              <span className="text-[9px] text-cubs-red italic">Model pending — Phase 5</span>
+              <span className="text-[9px] text-text-secondary italic">Awaiting model training</span>
             )}
           </div>
 
           <div className="flex items-center gap-4 mb-3 pb-2 border-b border-white-8">
             <BasePill label="Coin flip" value="50%" />
             <BasePill label="Home adv" value="54%" />
-            <BasePill label="Model" value={modelReady ? `${(predictions.win_probability * 100).toFixed(1)}%` : '—'} accent />
+            <BasePill label="Model" value={modelReady && predictions?.win_probability != null
+              ? `${(predictions.win_probability * 100).toFixed(1)}%` : '—'} accent />
           </div>
 
           {upLoading ? (
@@ -119,7 +130,7 @@ export default function Predictions() {
               ))}
             </div>
           ) : !upcoming?.length ? (
-            <p className="text-sm text-text-secondary italic py-4 text-center">No upcoming games</p>
+            <p className="text-sm text-text-secondary italic py-4 text-center">No upcoming games scheduled</p>
           ) : (
             upcoming.map(g => (
               <PredictionRow key={g.game_pk}
@@ -129,76 +140,33 @@ export default function Predictions() {
           )}
         </div>
 
-        {/* Backtesting visualization */}
+        {/* Feature importance */}
         <div className="bg-surface rounded-lg border border-white-8 p-4">
           <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            MODEL BACKTESTING
+            WHAT DRIVES PREDICTIONS
           </h3>
-
-          {!modelReady ? (
-            <div className="flex flex-col items-center justify-center h-[250px] gap-3">
-              <div className="w-12 h-12 rounded-full bg-surface-hover flex items-center justify-center">
-                <span className="text-2xl">📊</span>
+          <p className="text-[10px] text-accent-blue italic mb-3">
+            Plain English labels show what each ML feature means in baseball terms
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(FEATURE_LABELS).map(([key, label]) => (
+              <div key={key} className="flex items-center gap-2 py-1.5 px-3 rounded bg-surface-hover">
+                <div className="w-1.5 h-6 rounded-full bg-accent-blue opacity-30" />
+                <div>
+                  <span className="text-[10px] text-text-primary font-medium block">{label}</span>
+                  <span className="text-[8px] text-text-secondary"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}>{key}</span>
+                </div>
               </div>
-              <p className="text-sm text-text-secondary text-center">
-                Backtesting results will appear after model training in Phase 5
-              </p>
-              <p className="text-[10px] text-text-secondary italic text-center max-w-[280px]">
-                We'll show monthly accuracy vs baseline (coin flip at 50%), precision/recall,
-                and feature importance rankings
-              </p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={MOCK_BACKTEST} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="month"
-                  tick={{ fontSize: 10, fill: '#8892A8', fontFamily: "'JetBrains Mono'" }}
-                  axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
-                <YAxis domain={[40, 70]}
-                  tick={{ fontSize: 10, fill: '#8892A8', fontFamily: "'JetBrains Mono'" }}
-                  axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
-                <Tooltip contentStyle={{
-                  backgroundColor: '#141B2D', border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 8, fontSize: 11, fontFamily: "'JetBrains Mono'"
-                }} />
-                <Bar dataKey="accuracy" radius={[3, 3, 0, 0]} name="Model Accuracy %">
-                  {MOCK_BACKTEST.map((e, i) => (
-                    <Cell key={i} fill={e.accuracy ? (e.accuracy >= 55 ? '#34D399' : '#FBBF24') : '#1A2340'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            ))}
+          </div>
+          {!modelReady && (
+            <p className="text-[10px] text-text-secondary italic mt-3">
+              Feature importance bars will appear after model training.
+            </p>
           )}
         </div>
-      </div>
-
-      {/* Feature importance */}
-      <div className="bg-surface rounded-lg border border-white-8 p-4">
-        <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-          FEATURE IMPORTANCE — WHAT DRIVES PREDICTIONS
-        </h3>
-        <p className="text-[10px] text-accent-blue italic mb-3">
-          Plain English labels show what each ML feature means in baseball terms
-        </p>
-        <div className="grid grid-cols-4 gap-3">
-          {Object.entries(FEATURE_LABELS).map(([key, label]) => (
-            <div key={key} className="flex items-center gap-2 py-1.5 px-3 rounded bg-surface-hover">
-              <div className="w-1.5 h-6 rounded-full bg-accent-blue opacity-30" />
-              <div>
-                <span className="text-[10px] text-text-primary font-medium block">{label}</span>
-                <span className="text-[8px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{key}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        {!modelReady && (
-          <p className="text-[10px] text-text-secondary italic mt-3">
-            Feature importance bars will appear after model training. Currently showing feature definitions.
-          </p>
-        )}
       </div>
 
       {/* Regression flags */}
@@ -210,13 +178,28 @@ export default function Predictions() {
         {regression?.flags?.length ? (
           <div className="flex flex-col gap-2">
             {regression.flags.map((f, i) => (
-              <div key={i} className="text-sm text-text-primary">{JSON.stringify(f)}</div>
+              <div key={i} className="flex items-center justify-between py-2 border-b border-white-8 last:border-b-0">
+                <div>
+                  <span className="text-sm text-text-primary font-medium">{f.player_name}</span>
+                  <span className="text-[10px] text-text-secondary ml-2">
+                    {f.stat_name?.toUpperCase()} — z-score: {f.z_score}
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    color: f.regression_probability > 0.6 ? '#F87171' : f.regression_probability > 0.3 ? '#FBBF24' : '#8892A8',
+                  }}>
+                  {(f.regression_probability * 100).toFixed(0)}% prob
+                </span>
+              </div>
             ))}
           </div>
         ) : (
           <p className="text-sm text-text-secondary italic py-4 text-center">
-            Regression detection model outputs will appear here after Phase 5 training.
-            Target: 7 of 10 flags prove correct within 30 days.
+            {regression?.total_players_analyzed
+              ? `Analyzed ${regression.total_players_analyzed} players — no significant regression flags detected.`
+              : 'Regression detection will run after player benchmarks are computed.'}
           </p>
         )}
       </div>
@@ -224,20 +207,23 @@ export default function Predictions() {
   )
 }
 
-function ModelCard({ title, model, target, status, baselines = [] }) {
-  const isReady = status !== 'model_not_trained'
+function ModelCard({ title, model, target, status, error, baselines = [] }) {
+  const isReady = status === 'active' || status === 'trained'
+  const statusLabel = error ? 'ERROR' : isReady ? 'ACTIVE' : 'PENDING'
+  const statusColor = error ? '#F87171' : isReady ? '#34D399' : '#FBBF24'
+
   return (
     <div className="bg-surface rounded-lg border border-white-8 p-4">
       <div className="flex items-center gap-2 mb-2">
-        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: isReady ? '#34D399' : '#F87171' }} />
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} />
         <span className="text-sm font-semibold text-text-primary">{title}</span>
       </div>
       <div className="flex items-center gap-2 mb-2">
         <span className="text-[9px] text-text-secondary px-1.5 py-0.5 rounded bg-surface-hover"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}>{model}</span>
         <span className="text-[9px] font-bold"
-          style={{ fontFamily: "'JetBrains Mono', monospace", color: isReady ? '#34D399' : '#F87171' }}>
-          {isReady ? 'ACTIVE' : 'PENDING'}
+          style={{ fontFamily: "'JetBrains Mono', monospace", color: statusColor }}>
+          {statusLabel}
         </span>
       </div>
       <p className="text-[10px] text-text-secondary mb-2">Target: {target}</p>

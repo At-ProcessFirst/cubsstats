@@ -133,7 +133,7 @@ def _top_performers_context(season: int, db: Session) -> str:
         HitterSeasonStats.season == season,
         HitterSeasonStats.team == "CHC",
         HitterSeasonStats.pa >= 20,
-    ).order_by(HitterSeasonStats.wrc_plus.desc()).limit(3).all()
+    ).order_by(HitterSeasonStats.pa.desc()).limit(3).all()
 
     for h in hitters:
         player = db.query(Player).filter(Player.mlb_id == h.player_id).first()
@@ -143,9 +143,10 @@ def _top_performers_context(season: int, db: Session) -> str:
             PlayerBenchmark.stat_name == "wrc_plus",
         ).first()
         pctile = f" ({pb_wrc.percentile}th pctile)" if pb_wrc else ""
+        wrc_str = f"{h.wrc_plus:.0f} wRC+" if h.wrc_plus is not None else ""
+        woba_str = f".{int(h.woba * 1000)} wOBA" if h.woba is not None else f".{int((h.obp or 0) * 1000)} OBP"
         lines.append(
-            f"Hitter: {name} — {h.pa} PA, {h.wrc_plus:.0f} wRC+{pctile}, "
-            f".{int((h.woba or 0) * 1000)} wOBA"
+            f"Hitter: {name} — {h.pa} PA, {wrc_str}{pctile}, {woba_str}"
         )
 
     return "\n".join(lines) if lines else "No performer data available."
