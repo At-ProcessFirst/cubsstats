@@ -30,6 +30,7 @@ from app.services.ingestion import (
     compute_team_season_stats,
     pull_cubs_roster, pull_player_season_stats,
     mlb_api_get, TEAM_ID_ABBR, _safe_float, _safe_int,
+    compute_fip, compute_woba,
 )
 from app.models.database import Player, PitcherSeasonStats, HitterSeasonStats
 from app.config import get_settings
@@ -123,8 +124,13 @@ def seed_cubs_roster_stats(db, season: int):
                         ip = 0
 
                     bf = _safe_int(stats.get("battersFaced"))
-                    k_pct = ((_safe_int(stats.get("strikeOuts")) / bf) * 100) if bf > 0 else None
-                    bb_pct = ((_safe_int(stats.get("baseOnBalls")) / bf) * 100) if bf > 0 else None
+                    k = _safe_int(stats.get("strikeOuts"))
+                    bb = _safe_int(stats.get("baseOnBalls"))
+                    hbp = _safe_int(stats.get("hitBatsmen")) or _safe_int(stats.get("hitByPitch"))
+                    hr = _safe_int(stats.get("homeRuns"))
+                    k_pct = ((k / bf) * 100) if bf > 0 else None
+                    bb_pct = ((bb / bf) * 100) if bf > 0 else None
+                    fip = compute_fip(hr, bb, hbp, k, ip)
 
                     existing = db.query(PitcherSeasonStats).filter(
                         PitcherSeasonStats.player_id == mlb_id,
@@ -135,6 +141,7 @@ def seed_cubs_roster_stats(db, season: int):
                         player_id=mlb_id, season=season, team="CHC",
                         position_group=pos_group, games=g, games_started=gs, ip=ip,
                         era=_safe_float(stats.get("era")),
+                        fip=round(fip, 2) if fip is not None else None,
                         k_pct=round(k_pct, 1) if k_pct else None,
                         bb_pct=round(bb_pct, 1) if bb_pct else None,
                         k_bb_pct=round(k_pct - bb_pct, 1) if k_pct and bb_pct else None,
@@ -150,11 +157,19 @@ def seed_cubs_roster_stats(db, season: int):
             else:
                 stats = pull_player_season_stats(mlb_id, season, "hitting")
                 if stats:
-                    from app.services.ingestion import normalize_team
                     player.position_group = "ALL_HITTERS"
 
                     pa = _safe_int(stats.get("plateAppearances"))
                     ab = _safe_int(stats.get("atBats"))
+                    hits = _safe_int(stats.get("hits"))
+                    doubles = _safe_int(stats.get("doubles"))
+                    triples = _safe_int(stats.get("triples"))
+                    hr = _safe_int(stats.get("homeRuns"))
+                    bb = _safe_int(stats.get("baseOnBalls"))
+                    hbp = _safe_int(stats.get("hitBatsmen")) or _safe_int(stats.get("hitByPitch"))
+                    sf = _safe_int(stats.get("sacFlies"))
+                    singles = hits - doubles - triples - hr
+                    woba = compute_woba(bb, hbp, singles, doubles, triples, hr, ab, sf)
 
                     existing = db.query(HitterSeasonStats).filter(
                         HitterSeasonStats.player_id == mlb_id,
@@ -169,6 +184,7 @@ def seed_cubs_roster_stats(db, season: int):
                         avg=_safe_float(stats.get("avg")),
                         obp=_safe_float(stats.get("obp")),
                         slg=_safe_float(stats.get("slg")),
+                        woba=round(woba, 3) if woba is not None else None,
                         babip=_safe_float(stats.get("babip")),
                     )
 

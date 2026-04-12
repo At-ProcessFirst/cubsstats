@@ -56,7 +56,7 @@ export default function MetricCard({
             color: gradeInfo.color,
           }}
         >
-          {formatStat(value, statName)}
+          {typeof value === 'string' ? value : formatStat(value, statName)}
         </span>
         <GradeBadge grade={grade || gradeInfo.label} />
       </div>

@@ -90,6 +90,24 @@ def _safe_int(val, default=0) -> int:
         return default
 
 
+def compute_fip(hr, bb, hbp, k, ip):
+    """FIP = ((13*HR + 3*(BB+HBP) - 2*K) / IP) + 3.10 (constant)."""
+    if ip is None or ip <= 0:
+        return None
+    return ((13 * hr + 3 * (bb + hbp) - 2 * k) / ip) + 3.10
+
+
+def compute_woba(bb, hbp, singles, doubles, triples, hr, ab, sf):
+    """wOBA using standard linear weights (2024 coefficients).
+    wOBA = (0.690*BB + 0.722*HBP + 0.878*1B + 1.242*2B + 1.569*3B + 2.015*HR) / (AB + BB + SF + HBP)
+    """
+    denom = ab + bb + sf + hbp
+    if denom <= 0:
+        return None
+    return (0.690 * bb + 0.722 * hbp + 0.878 * singles +
+            1.242 * doubles + 1.569 * triples + 2.015 * hr) / denom
+
+
 # ---------------------------------------------------------------------------
 # MLB Stats API helpers
 # ---------------------------------------------------------------------------
@@ -261,11 +279,17 @@ def load_mlb_pitching_to_db(records: list[dict], season: int, db: Session) -> in
             except (ValueError, TypeError):
                 ip = 0
 
-            # Compute K% and BB% from counts
+            # Compute derived stats from components
             bf = _safe_int(r.get("battersFaced"))
-            k_pct = ((_safe_int(r.get("strikeOuts")) / bf) * 100) if bf > 0 else None
-            bb_pct = ((_safe_int(r.get("baseOnBalls")) / bf) * 100) if bf > 0 else None
+            k = _safe_int(r.get("strikeOuts"))
+            bb = _safe_int(r.get("baseOnBalls"))
+            hbp = _safe_int(r.get("hitBatsmen")) or _safe_int(r.get("hitByPitch"))
+            hr = _safe_int(r.get("homeRuns"))
+
+            k_pct = ((k / bf) * 100) if bf > 0 else None
+            bb_pct = ((bb / bf) * 100) if bf > 0 else None
             k_bb_pct = (k_pct - bb_pct) if k_pct is not None and bb_pct is not None else None
+            fip = compute_fip(hr, bb, hbp, k, ip)
 
             existing = db.query(PitcherSeasonStats).filter(
                 PitcherSeasonStats.player_id == mlb_id,
@@ -277,10 +301,11 @@ def load_mlb_pitching_to_db(records: list[dict], season: int, db: Session) -> in
                 position_group=pos_group, games=g, games_started=gs,
                 ip=ip,
                 era=_safe_float(r.get("era")),
+                fip=round(fip, 2) if fip is not None else None,
                 k_pct=round(k_pct, 1) if k_pct is not None else None,
                 bb_pct=round(bb_pct, 1) if bb_pct is not None else None,
                 k_bb_pct=round(k_bb_pct, 1) if k_bb_pct is not None else None,
-                avg_velo=None,  # Not in MLB Stats API — comes from Statcast
+                avg_velo=None,
                 whiff_pct=None,
             )
 
@@ -340,6 +365,17 @@ def load_mlb_batting_to_db(records: list[dict], season: int, db: Session) -> int
             pa = _safe_int(r.get("plateAppearances"))
             ab = _safe_int(r.get("atBats"))
 
+            # Compute wOBA from components
+            hits = _safe_int(r.get("hits"))
+            doubles = _safe_int(r.get("doubles"))
+            triples = _safe_int(r.get("triples"))
+            hr = _safe_int(r.get("homeRuns"))
+            bb = _safe_int(r.get("baseOnBalls"))
+            hbp = _safe_int(r.get("hitBatsmen")) or _safe_int(r.get("hitByPitch"))
+            sf = _safe_int(r.get("sacFlies"))
+            singles = hits - doubles - triples - hr
+            woba = compute_woba(bb, hbp, singles, doubles, triples, hr, ab, sf)
+
             existing = db.query(HitterSeasonStats).filter(
                 HitterSeasonStats.player_id == mlb_id,
                 HitterSeasonStats.season == season,
@@ -353,8 +389,8 @@ def load_mlb_batting_to_db(records: list[dict], season: int, db: Session) -> int
                 avg=_safe_float(r.get("avg")),
                 obp=_safe_float(r.get("obp")),
                 slg=_safe_float(r.get("slg")),
+                woba=round(woba, 3) if woba is not None else None,
                 babip=_safe_float(r.get("babip")),
-                # wRC+, wOBA, xBA, xSLG, xwOBA not in MLB Stats API
                 # — these come from Statcast/FanGraphs, will be null initially
             )
 

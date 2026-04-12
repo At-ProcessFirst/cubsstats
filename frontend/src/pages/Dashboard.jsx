@@ -320,7 +320,7 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
             return (
               <PlayerStatRow
                 key={p.player_id}
-                name={playerNameById(p.player_id)}
+                name={playerName(p)}
                 stat1={p.era != null ? p.era.toFixed(2) : '—'}
                 stat1Pctile={eraPctile}
                 stat2={p.fip != null ? p.fip.toFixed(2) : '—'}
@@ -415,7 +415,7 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
             return (
               <PlayerStatRow
                 key={h.player_id}
-                name={playerNameById(h.player_id)}
+                name={playerName(h)}
                 stat1={h.woba != null ? h.woba.toFixed(3).replace(/^0/, '') : '—'}
                 stat1Pctile={wobaPctile}
                 stat2={h.xwoba != null ? h.xwoba.toFixed(3).replace(/^0/, '') : '—'}
@@ -553,9 +553,9 @@ function ModelStatusRow({ label, model, status }) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Temporary player name lookup by ID — in production this comes from the API */
-function playerNameById(id) {
-  return `#${id}`
+/** Get player name — enriched endpoints include a name field */
+function playerName(player) {
+  return player.name || `#${player.player_id}`
 }
 
 function Shimmer({ lines = 3 }) {
@@ -614,8 +614,8 @@ export default function Dashboard() {
   const { data: divergences, loading: divLoading } = useApi('/divergences/enriched')
   const { data: upcoming, loading: upcomingLoading } = useApi('/team/upcoming')
   const { data: predictions, loading: predLoading } = useApi('/predictions/game-outcome')
-  const { data: cubsPitching, loading: pitchLoading } = useApi('/pitching/cubs')
-  const { data: cubsHitting, loading: hitLoading } = useApi('/hitting/cubs')
+  const { data: cubsPitching, loading: pitchLoading } = useApi('/pitching/cubs/enriched')
+  const { data: cubsHitting, loading: hitLoading } = useApi('/hitting/cubs/enriched')
   const { getBenchmark, loading: benchLoading } = useBenchmarks()
 
   const isLoading = teamLoading || recordLoading || benchLoading
