@@ -676,7 +676,34 @@ def parse_boxscore_hitters(boxscore: dict, game_pk: int, game_date: date,
 # Team aggregate computation
 # ---------------------------------------------------------------------------
 
+def _weighted_avg(items, val_attr, weight_attr):
+    """Compute weighted average, skipping None values. Returns None if no data."""
+    pairs = [(getattr(i, val_attr), getattr(i, weight_attr) or 0)
+             for i in items
+             if getattr(i, val_attr) is not None and getattr(i, weight_attr)]
+    if not pairs:
+        return None
+    total_weight = sum(w for _, w in pairs)
+    if total_weight == 0:
+        return None
+    return sum(v * w for v, w in pairs) / total_weight
+
+
+def _safe_round(val, decimals):
+    """Round a value, returning None if the input is None."""
+    if val is None:
+        return None
+    try:
+        return round(float(val), decimals)
+    except (ValueError, TypeError):
+        return None
+
+
 def compute_team_season_stats(team: str, season: int, db: Session) -> TeamSeasonStats:
+    """Compute team aggregate stats from games + individual player stats.
+
+    All calculations guard against None/NaN to prevent dashboard display issues.
+    """
     games = db.query(Game).filter(
         Game.season == season, Game.status == "final",
         ((Game.home_team == team) | (Game.away_team == team)),
@@ -697,52 +724,39 @@ def compute_team_season_stats(team: str, season: int, db: Session) -> TeamSeason
         pythag_wins = round(pythag_pct * len(games), 1)
         pythag_losses = round((1 - pythag_pct) * len(games), 1)
 
+    # --- Pitching aggregates (IP-weighted, only pitchers with non-null values) ---
     pitchers = db.query(PitcherSeasonStats).filter(
         PitcherSeasonStats.season == season, PitcherSeasonStats.team == team,
     ).all()
 
-    team_era = team_fip = team_k_pct = team_bb_pct = None
-    if pitchers:
-        total_ip = sum(p.ip or 0 for p in pitchers)
-        if total_ip > 0:
-            team_era = sum((p.era or 0) * (p.ip or 0) for p in pitchers) / total_ip
-            team_fip = sum((p.fip or 0) * (p.ip or 0) for p in pitchers if p.fip) / total_ip if any(p.fip for p in pitchers) else None
-        k_pcts = [p.k_pct for p in pitchers if p.k_pct is not None]
-        bb_pcts = [p.bb_pct for p in pitchers if p.bb_pct is not None]
-        if k_pcts:
-            team_k_pct = sum(k_pcts) / len(k_pcts)
-        if bb_pcts:
-            team_bb_pct = sum(bb_pcts) / len(bb_pcts)
+    team_era = _weighted_avg(pitchers, "era", "ip")
+    team_fip = _weighted_avg(pitchers, "fip", "ip")
+    team_k_pct = _weighted_avg(pitchers, "k_pct", "ip")
+    team_bb_pct = _weighted_avg(pitchers, "bb_pct", "ip")
 
+    # --- Hitting aggregates (PA-weighted) ---
     hitters = db.query(HitterSeasonStats).filter(
         HitterSeasonStats.season == season, HitterSeasonStats.team == team,
     ).all()
 
-    team_wrc_plus = team_woba = team_hard_hit_pct = team_barrel_pct = None
-    team_avg = team_obp = team_slg = None
-    if hitters:
-        # Compute team AVG, OBP, SLG weighted by PA
-        qualified = [h for h in hitters if h.pa and h.pa > 0]
-        if qualified:
-            total_pa = sum(h.pa for h in qualified)
-            total_ab = sum(h.ab or 0 for h in qualified)
-            if total_ab > 0:
-                total_hits = sum((h.ab or 0) * (h.avg or 0) for h in qualified if h.avg is not None)
-                team_avg = total_hits / total_ab
-            avg_with_obp = [h for h in qualified if h.obp is not None]
-            if avg_with_obp:
-                team_obp = sum(h.obp * h.pa for h in avg_with_obp) / sum(h.pa for h in avg_with_obp)
-            avg_with_slg = [h for h in qualified if h.slg is not None]
-            if avg_with_slg:
-                team_slg = sum(h.slg * h.pa for h in avg_with_slg) / sum(h.pa for h in avg_with_slg)
-            # Approximate wRC+ from OPS+ logic: (OBP/lgOBP + SLG/lgSLG - 1) * 100
-            # Using .320 OBP and .400 SLG as league averages
-            if team_obp is not None and team_slg is not None:
-                team_wrc_plus = ((team_obp / 0.320) + (team_slg / 0.400) - 1) * 100
-        woba_vals = [h for h in hitters if h.woba and h.pa and h.pa > 0]
-        if woba_vals:
-            total_pa = sum(h.pa for h in woba_vals)
-            team_woba = sum(h.woba * h.pa for h in woba_vals) / total_pa
+    team_wrc_plus = None
+    team_woba = None
+    team_hard_hit_pct = None
+    team_barrel_pct = None
+
+    qualified = [h for h in hitters if h.pa and h.pa > 0]
+    if qualified:
+        team_obp = _weighted_avg(qualified, "obp", "pa")
+        team_slg = _weighted_avg(qualified, "slg", "pa")
+
+        # Approximate wRC+ from OPS+ approach
+        # League avg OBP ~.315, SLG ~.395 for 2024-2026 era
+        if team_obp is not None and team_slg is not None:
+            team_wrc_plus = ((team_obp / 0.315) + (team_slg / 0.395) - 1) * 100
+
+        team_woba = _weighted_avg(qualified, "woba", "pa")
+        team_hard_hit_pct = _weighted_avg(qualified, "hard_hit_pct", "pa")
+        team_barrel_pct = _weighted_avg(qualified, "barrel_pct", "pa")
 
     try:
         existing = db.query(TeamSeasonStats).filter(
@@ -752,14 +766,14 @@ def compute_team_season_stats(team: str, season: int, db: Session) -> TeamSeason
         vals = dict(
             team=team, season=season, games_played=len(games),
             wins=wins, losses=losses, runs_scored=rs, runs_allowed=ra,
-            team_era=round(team_era, 2) if team_era else None,
-            team_fip=round(team_fip, 2) if team_fip else None,
-            team_wrc_plus=round(team_wrc_plus, 1) if team_wrc_plus else None,
-            team_woba=round(team_woba, 3) if team_woba else None,
-            team_k_pct=round(team_k_pct, 3) if team_k_pct else None,
-            team_bb_pct=round(team_bb_pct, 3) if team_bb_pct else None,
-            team_hard_hit_pct=round(team_hard_hit_pct, 3) if team_hard_hit_pct else None,
-            team_barrel_pct=round(team_barrel_pct, 3) if team_barrel_pct else None,
+            team_era=_safe_round(team_era, 2),
+            team_fip=_safe_round(team_fip, 2),
+            team_wrc_plus=_safe_round(team_wrc_plus, 1),
+            team_woba=_safe_round(team_woba, 3),
+            team_k_pct=_safe_round(team_k_pct, 1),
+            team_bb_pct=_safe_round(team_bb_pct, 1),
+            team_hard_hit_pct=_safe_round(team_hard_hit_pct, 1),
+            team_barrel_pct=_safe_round(team_barrel_pct, 1),
             pythag_wins=pythag_wins, pythag_losses=pythag_losses,
             run_diff=rs - ra,
         )

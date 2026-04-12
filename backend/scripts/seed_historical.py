@@ -18,7 +18,7 @@ import argparse
 import logging
 import sys
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, ".")
 
@@ -200,43 +200,45 @@ def seed_cubs_roster_stats(db, season: int):
 
 
 def seed_games(db, season: int):
-    """Pull Cubs game schedule and results. Fetches in monthly chunks to get all games."""
+    """Pull ALL Cubs games for a season from MLB Stats API.
+
+    Uses a single API call per month (March-November).
+    The schedule endpoint handles full months fine for a single team.
+    """
     logger.info(f"=== Cubs games for {season} ===")
 
     today = date.today()
-    # Fetch month by month to avoid API limits
-    total_loaded = 0
-    month_starts = []
+    total_api = 0
+    total_new = 0
+
     for month in range(3, 12):  # March through November
         start = date(season, month, 1)
-        if month == 11:
-            end = date(season, 11, 15)
-        else:
-            end = date(season, month + 1, 1) - __import__('datetime').timedelta(days=1)
-
         if start > today:
             break
+        # Last day of month
+        if month == 12:
+            end = date(season, 12, 31)
+        else:
+            end = date(season, month + 1, 1) - timedelta(days=1)
         if end > today:
             end = today
 
-        month_starts.append((start, end))
-
-    for start, end in month_starts:
         try:
             games_data = fetch_schedule(start, end, team_id=settings.cubs_team_id)
             if games_data:
                 games = parse_mlb_api_games(games_data, db)
                 count = upsert_games(games, db)
-                total_loaded += count
-                logger.info(f"  {start.strftime('%b %Y')}: {count} new / {len(games)} total games")
+                total_api += len(games)
+                total_new += count
+                logger.info(f"  {start.strftime('%b %Y')}: {len(games)} from API, {count} new")
         except Exception as e:
-            logger.error(f"  Failed for {start} to {end}: {e}")
+            logger.error(f"  Failed {start} to {end}: {e}")
             try:
                 db.rollback()
             except Exception:
                 pass
 
-    logger.info(f"  Total games loaded for {season}: {total_loaded}")
+    logger.info(f"  Season {season} total: {total_api} games from API, {total_new} new inserts")
 
 
 def main():
