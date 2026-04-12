@@ -1,0 +1,57 @@
+version: "3.8"
+
+services:
+  # ── FastAPI backend ──────────────────────────────────────────
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - cubsedge-data:/app/data
+      - cubsedge-models:/app/models
+    env_file:
+      - ./backend/.env.production
+    environment:
+      - DATABASE_URL=sqlite:////app/data/cubsedge.db
+      - ENVIRONMENT=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8000/health'); assert r.status_code==200"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Cron scheduler (runs all scheduled jobs) ─────────────────
+  scheduler:
+    build: ./backend
+    command: ["python", "-m", "scripts.scheduler"]
+    volumes:
+      - cubsedge-data:/app/data
+      - cubsedge-models:/app/models
+    env_file:
+      - ./backend/.env.production
+    environment:
+      - DATABASE_URL=sqlite:////app/data/cubsedge.db
+      - ENVIRONMENT=production
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ── One-shot: seed historical data ───────────────────────────
+  seed:
+    build: ./backend
+    command: ["sh", "-c", "python -m scripts.seed_historical && python -m scripts.seed_benchmarks"]
+    volumes:
+      - cubsedge-data:/app/data
+      - cubsedge-models:/app/models
+    env_file:
+      - ./backend/.env.production
+    environment:
+      - DATABASE_URL=sqlite:////app/data/cubsedge.db
+    profiles:
+      - seed  # Only runs with: docker compose --profile seed run seed
+
+volumes:
+  cubsedge-data:
+  cubsedge-models:

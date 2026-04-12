@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Navy backgrounds */
+  --color-navy: #0E1629;
+  --color-surface: #141B2D;
+  --color-surface-hover: #1A2340;
+
+  /* Cubs branding */
+  --color-cubs-blue: #0E3386;
+  --color-cubs-red: #CC3433;
+
+  /* Text */
+  --color-text-primary: #E8ECF4;
+  --color-text-secondary: #8892A8;
+
+  /* Signal colors */
+  --color-elite: #34D399;
+  --color-above-avg: #6EE7B7;
+  --color-average: #8892A8;
+  --color-below-avg: #FBBF24;
+  --color-poor: #F87171;
+  --color-accent-blue: #60A5FA;
+  --color-accent-purple: #A78BFA;
+  --color-accent-cyan: #22D3EE;
+  --color-accent-pink: #F472B6;
+
+  /* Fonts */
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'DM Sans', sans-serif;
+}
+
+body {
+  margin: 0;
+  background-color: #0E1629;
+  color: #E8ECF4;
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0E1629;
+}
+::-webkit-scrollbar-thumb {
+  background: #1A2340;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8892A8;
+}
+
+.border-white-8 {
+  border-color: rgba(255, 255, 255, 0.08);
+}

@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+.env
+.env.production
+*.db
+models/*.joblib
+models/model_meta.json
+.git
+.venv
+venv
