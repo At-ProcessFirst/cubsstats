@@ -127,64 +127,94 @@ def fetch_boxscore(game_pk: int) -> dict:
 # MLB Stats API: League-wide season stats (replaces FanGraphs)
 # ---------------------------------------------------------------------------
 
-def pull_mlb_pitching_stats(season: int) -> list[dict]:
-    """Pull league-wide pitching season stats from MLB Stats API.
-    Endpoint: /stats?stats=season&group=pitching&season=YYYY&sportId=1&playerPool=ALL
-    """
-    logger.info(f"Pulling MLB API pitching stats for {season}...")
-    data = mlb_api_get("/stats", {
-        "stats": "season",
-        "group": "pitching",
-        "season": season,
-        "sportId": 1,
-        "playerPool": "ALL",
-        "limit": 1000,
-        "offset": 0,
-    })
+def _paginated_stats_pull(group: str, season: int) -> list[dict]:
+    """Pull all player season stats with pagination. MLB API caps at ~50 per page."""
     results = []
-    for split in data.get("stats", []):
-        for entry in split.get("splits", []):
-            player_info = entry.get("player", {})
-            team_info = entry.get("team", {})
-            stat = entry.get("stat", {})
-            results.append({
-                "mlb_id": player_info.get("id"),
-                "name": player_info.get("fullName", ""),
-                "team_id": team_info.get("id"),
-                "team_name": team_info.get("name", ""),
-                **stat,
-            })
+    offset = 0
+    page_size = 50
+    while True:
+        data = mlb_api_get("/stats", {
+            "stats": "season",
+            "group": group,
+            "season": season,
+            "sportId": 1,
+            "playerPool": "ALL",
+            "limit": page_size,
+            "offset": offset,
+        })
+        page_results = []
+        total_splits = 0
+        for split_group in data.get("stats", []):
+            total_splits = split_group.get("totalSplits", 0)
+            for entry in split_group.get("splits", []):
+                player_info = entry.get("player", {})
+                team_info = entry.get("team", {})
+                stat = entry.get("stat", {})
+                page_results.append({
+                    "mlb_id": player_info.get("id"),
+                    "name": player_info.get("fullName", ""),
+                    "team_id": team_info.get("id"),
+                    "team_name": team_info.get("name", ""),
+                    **stat,
+                })
+        results.extend(page_results)
+        offset += page_size
+        if not page_results or offset >= total_splits:
+            break
+    return results
+
+
+def pull_mlb_pitching_stats(season: int) -> list[dict]:
+    """Pull ALL league-wide pitching season stats (paginated)."""
+    logger.info(f"Pulling MLB API pitching stats for {season} (paginated)...")
+    results = _paginated_stats_pull("pitching", season)
     logger.info(f"  Got {len(results)} pitcher records")
     return results
 
 
 def pull_mlb_batting_stats(season: int) -> list[dict]:
-    """Pull league-wide batting season stats from MLB Stats API."""
-    logger.info(f"Pulling MLB API batting stats for {season}...")
-    data = mlb_api_get("/stats", {
-        "stats": "season",
-        "group": "hitting",
-        "season": season,
-        "sportId": 1,
-        "playerPool": "ALL",
-        "limit": 1000,
-        "offset": 0,
-    })
-    results = []
-    for split in data.get("stats", []):
-        for entry in split.get("splits", []):
-            player_info = entry.get("player", {})
-            team_info = entry.get("team", {})
-            stat = entry.get("stat", {})
-            results.append({
-                "mlb_id": player_info.get("id"),
-                "name": player_info.get("fullName", ""),
-                "team_id": team_info.get("id"),
-                "team_name": team_info.get("name", ""),
-                **stat,
-            })
+    """Pull ALL league-wide batting season stats (paginated)."""
+    logger.info(f"Pulling MLB API batting stats for {season} (paginated)...")
+    results = _paginated_stats_pull("hitting", season)
     logger.info(f"  Got {len(results)} hitter records")
     return results
+
+
+def pull_cubs_roster(season: int) -> list[dict]:
+    """Pull Cubs 40-man roster from MLB Stats API."""
+    logger.info(f"Pulling Cubs roster for {season}...")
+    data = mlb_api_get(f"/teams/{CUBS_ID}/roster", {
+        "season": season,
+        "rosterType": "fullSeason",
+    })
+    players = []
+    for entry in data.get("roster", []):
+        person = entry.get("person", {})
+        pos = entry.get("position", {})
+        players.append({
+            "mlb_id": person.get("id"),
+            "name": person.get("fullName", ""),
+            "position": pos.get("abbreviation", ""),
+            "position_type": pos.get("type", ""),
+        })
+    logger.info(f"  Got {len(players)} Cubs roster players")
+    return players
+
+
+def pull_player_season_stats(player_id: int, season: int, group: str = "hitting") -> Optional[dict]:
+    """Pull an individual player's season stats."""
+    try:
+        data = mlb_api_get(f"/people/{player_id}/stats", {
+            "stats": "season",
+            "season": season,
+            "group": group,
+        })
+        for sg in data.get("stats", []):
+            for split in sg.get("splits", []):
+                return split.get("stat", {})
+    except Exception:
+        pass
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -689,7 +719,26 @@ def compute_team_season_stats(team: str, season: int, db: Session) -> TeamSeason
     ).all()
 
     team_wrc_plus = team_woba = team_hard_hit_pct = team_barrel_pct = None
+    team_avg = team_obp = team_slg = None
     if hitters:
+        # Compute team AVG, OBP, SLG weighted by PA
+        qualified = [h for h in hitters if h.pa and h.pa > 0]
+        if qualified:
+            total_pa = sum(h.pa for h in qualified)
+            total_ab = sum(h.ab or 0 for h in qualified)
+            if total_ab > 0:
+                total_hits = sum((h.ab or 0) * (h.avg or 0) for h in qualified if h.avg is not None)
+                team_avg = total_hits / total_ab
+            avg_with_obp = [h for h in qualified if h.obp is not None]
+            if avg_with_obp:
+                team_obp = sum(h.obp * h.pa for h in avg_with_obp) / sum(h.pa for h in avg_with_obp)
+            avg_with_slg = [h for h in qualified if h.slg is not None]
+            if avg_with_slg:
+                team_slg = sum(h.slg * h.pa for h in avg_with_slg) / sum(h.pa for h in avg_with_slg)
+            # Approximate wRC+ from OPS+ logic: (OBP/lgOBP + SLG/lgSLG - 1) * 100
+            # Using .320 OBP and .400 SLG as league averages
+            if team_obp is not None and team_slg is not None:
+                team_wrc_plus = ((team_obp / 0.320) + (team_slg / 0.400) - 1) * 100
         woba_vals = [h for h in hitters if h.woba and h.pa and h.pa > 0]
         if woba_vals:
             total_pa = sum(h.pa for h in woba_vals)
