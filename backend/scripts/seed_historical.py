@@ -3,9 +3,10 @@
 seed_historical.py — One-time script to load 2024-2025 Cubs + all MLB player data.
 
 Pulls from:
-  - FanGraphs (via pybaseball): season pitching + batting stats for all qualified players
-  - MLB Stats API: game schedules and results for Cubs
-  - Statcast (via pybaseball): pitch-level data for Cubs pitchers (sampled)
+  - MLB Stats API: league-wide pitching + batting season stats, game schedules
+  - Statcast (via pybaseball): pitch-level data for Cubs pitchers
+
+FanGraphs is NOT used — returns 403 from cloud IPs.
 
 Usage:
     cd backend
@@ -17,13 +18,13 @@ import sys
 import time
 from datetime import date, datetime, timezone
 
-# Ensure the backend package is importable
 sys.path.insert(0, ".")
 
 from app.models.database import SessionLocal, init_db, PipelineRun
 from app.services.ingestion import (
-    pull_fg_pitching, pull_fg_batting, pull_statcast_range,
-    load_fg_pitching_to_db, load_fg_batting_to_db, load_statcast_to_db,
+    pull_mlb_pitching_stats, pull_mlb_batting_stats,
+    load_mlb_pitching_to_db, load_mlb_batting_to_db,
+    pull_statcast_range, load_statcast_to_db,
     fetch_schedule, parse_mlb_api_games, upsert_games,
     compute_team_season_stats,
 )
@@ -36,38 +37,32 @@ settings = get_settings()
 SEASONS = [2024, 2025]
 
 
-def seed_fg_data(db, season: int):
-    """Pull and load FanGraphs pitching + batting data for a season."""
-    logger.info(f"=== Seeding FanGraphs data for {season} ===")
+def seed_mlb_api_player_stats(db, season: int):
+    """Pull and load league-wide pitching + batting stats from MLB Stats API."""
+    logger.info(f"=== Seeding MLB Stats API player data for {season} ===")
 
-    # Pitching — low qual threshold to get more players for benchmarking
     try:
-        pitching_df = pull_fg_pitching(season, qual=10)
-        if pitching_df is not None and not pitching_df.empty:
-            count = load_fg_pitching_to_db(pitching_df, season, db)
-            logger.info(f"  Loaded {count} new pitcher records for {season} ({len(pitching_df)} total)")
-        else:
-            logger.warning(f"  No pitching data returned for {season}")
+        pitching_records = pull_mlb_pitching_stats(season)
+        count = load_mlb_pitching_to_db(pitching_records, season, db)
+        logger.info(f"  Loaded {count} new pitcher records ({len(pitching_records)} total from API)")
     except Exception as e:
-        logger.error(f"  Failed to pull FG pitching for {season}: {e}")
+        logger.error(f"  MLB API pitching pull failed for {season}: {e}")
+        db.rollback()
 
-    # Batting
     try:
-        batting_df = pull_fg_batting(season, qual=30)
-        if batting_df is not None and not batting_df.empty:
-            count = load_fg_batting_to_db(batting_df, season, db)
-            logger.info(f"  Loaded {count} new hitter records for {season} ({len(batting_df)} total)")
-        else:
-            logger.warning(f"  No batting data returned for {season}")
+        batting_records = pull_mlb_batting_stats(season)
+        count = load_mlb_batting_to_db(batting_records, season, db)
+        logger.info(f"  Loaded {count} new hitter records ({len(batting_records)} total from API)")
     except Exception as e:
-        logger.error(f"  Failed to pull FG batting for {season}: {e}")
+        logger.error(f"  MLB API batting pull failed for {season}: {e}")
+        db.rollback()
 
 
 def seed_mlb_api_games(db, season: int):
     """Pull Cubs game schedule and results from MLB Stats API."""
     logger.info(f"=== Seeding MLB API games for {season} ===")
     try:
-        start = date(season, 3, 20)  # Spring training / season start
+        start = date(season, 3, 20)
         end = date(season, 11, 5) if season < date.today().year else date.today()
 
         games_data = fetch_schedule(start, end, team_id=settings.cubs_team_id)
@@ -76,14 +71,11 @@ def seed_mlb_api_games(db, season: int):
         logger.info(f"  Loaded {count} new games for {season} ({len(games)} total)")
     except Exception as e:
         logger.error(f"  Failed to pull MLB API games for {season}: {e}")
+        db.rollback()
 
 
 def seed_statcast_sample(db, season: int):
-    """Pull a sample of Statcast pitch-level data for Cubs pitchers.
-
-    Full Statcast pulls are large — for historical seeding we pull
-    monthly chunks for the Cubs only.
-    """
+    """Pull Statcast pitch-level data for Cubs (monthly chunks)."""
     logger.info(f"=== Seeding Statcast data for {season} ===")
     months = [
         (f"{season}-03-20", f"{season}-03-31"),
@@ -98,11 +90,11 @@ def seed_statcast_sample(db, season: int):
     today = date.today()
     total = 0
     for start_dt, end_dt in months:
-        end_date = date.fromisoformat(end_dt)
-        if end_date > today:
+        end_date_val = date.fromisoformat(end_dt)
+        if end_date_val > today:
             end_dt = today.isoformat()
-        start_date = date.fromisoformat(start_dt)
-        if start_date > today:
+        start_date_val = date.fromisoformat(start_dt)
+        if start_date_val > today:
             break
 
         try:
@@ -114,10 +106,10 @@ def seed_statcast_sample(db, season: int):
                 logger.info(f"  Loaded {count} pitches for {start_dt} to {end_dt}")
             else:
                 logger.info(f"  No Statcast data for {start_dt} to {end_dt}")
-            # Rate limiting — be nice to Baseball Savant
             time.sleep(5)
         except Exception as e:
             logger.error(f"  Failed Statcast pull {start_dt} to {end_dt}: {e}")
+            db.rollback()
             time.sleep(10)
 
     logger.info(f"  Total Statcast pitches loaded for {season}: {total}")
@@ -135,21 +127,19 @@ def main():
     db.add(run)
     db.commit()
 
-    total_records = 0
-
     try:
         for season in SEASONS:
             logger.info(f"\n{'='*40}")
             logger.info(f"Processing season {season}")
             logger.info(f"{'='*40}")
 
-            # 1. FanGraphs season stats (all MLB players)
-            seed_fg_data(db, season)
+            # 1. MLB Stats API season stats (all MLB players — replaces FanGraphs)
+            seed_mlb_api_player_stats(db, season)
 
             # 2. MLB API games (Cubs schedule + results)
             seed_mlb_api_games(db, season)
 
-            # 3. Statcast pitch-level data (Cubs)
+            # 3. Statcast pitch-level data (Cubs only, via pybaseball)
             seed_statcast_sample(db, season)
 
             # 4. Compute team aggregate stats
@@ -158,7 +148,6 @@ def main():
 
         run.status = "completed"
         run.completed_at = datetime.now(timezone.utc)
-        run.records_processed = total_records
         db.commit()
 
         logger.info("\n" + "=" * 60)
@@ -169,7 +158,10 @@ def main():
         run.status = "failed"
         run.error_message = str(e)
         run.completed_at = datetime.now(timezone.utc)
-        db.commit()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
         logger.error(f"Seed failed: {e}")
         raise
     finally:

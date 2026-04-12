@@ -27,8 +27,8 @@ sys.path.insert(0, ".")
 
 from app.models.database import SessionLocal, init_db, PipelineRun, TeamSeasonStats
 from app.services.ingestion import (
-    pull_fg_pitching, pull_fg_batting,
-    load_fg_pitching_to_db, load_fg_batting_to_db,
+    pull_mlb_pitching_stats, pull_mlb_batting_stats,
+    load_mlb_pitching_to_db, load_mlb_batting_to_db,
     compute_team_season_stats,
 )
 from app.services.benchmark_engine import (
@@ -61,25 +61,23 @@ def main():
     total = 0
 
     try:
-        # 1. Refresh FanGraphs league-wide stats
-        logger.info("Step 1: Pulling league-wide FanGraphs data...")
+        # 1. Refresh league-wide stats from MLB Stats API
+        logger.info("Step 1: Pulling league-wide MLB Stats API data...")
         try:
-            pitching_df = pull_fg_pitching(season, qual=10)
-            if pitching_df is not None:
-                count = load_fg_pitching_to_db(pitching_df, season, db)
-                logger.info(f"  Loaded/updated {count} pitcher records")
-                total += count
+            pitching_records = pull_mlb_pitching_stats(season)
+            count = load_mlb_pitching_to_db(pitching_records, season, db)
+            logger.info(f"  Loaded/updated {count} pitcher records")
+            total += count
         except Exception as e:
-            logger.error(f"  FG pitching pull failed: {e}")
+            logger.error(f"  MLB API pitching pull failed: {e}")
 
         try:
-            batting_df = pull_fg_batting(season, qual=30)
-            if batting_df is not None:
-                count = load_fg_batting_to_db(batting_df, season, db)
-                logger.info(f"  Loaded/updated {count} hitter records")
-                total += count
+            batting_records = pull_mlb_batting_stats(season)
+            count = load_mlb_batting_to_db(batting_records, season, db)
+            logger.info(f"  Loaded/updated {count} hitter records")
+            total += count
         except Exception as e:
-            logger.error(f"  FG batting pull failed: {e}")
+            logger.error(f"  MLB API batting pull failed: {e}")
 
         # 2. Recompute league-wide benchmarks
         logger.info("Step 2: Recomputing league-wide benchmarks...")

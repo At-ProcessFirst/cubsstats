@@ -33,8 +33,8 @@ from app.services.ingestion import (
     fetch_schedule, parse_mlb_api_games, upsert_games,
     fetch_boxscore, parse_boxscore_pitchers, parse_boxscore_hitters,
     compute_team_season_stats,
-    pull_fg_pitching, pull_fg_batting,
-    load_fg_pitching_to_db, load_fg_batting_to_db,
+    pull_mlb_pitching_stats, pull_mlb_batting_stats,
+    load_mlb_pitching_to_db, load_mlb_batting_to_db,
     pull_statcast_range, load_statcast_to_db,
 )
 from app.services.benchmark_engine import refresh_player_benchmarks
@@ -135,19 +135,17 @@ def run_pass2(db, target_date: date = None):
     except Exception as e:
         logger.error(f"  Statcast pull failed: {e}")
 
-    # 2. Refresh FanGraphs season stats (they update daily)
+    # 2. Refresh MLB Stats API season stats
     try:
-        logger.info("  Refreshing FanGraphs pitching stats...")
-        pitching_df = pull_fg_pitching(season, qual=10)
-        if pitching_df is not None:
-            load_fg_pitching_to_db(pitching_df, season, db)
+        logger.info("  Refreshing MLB API pitching stats...")
+        pitching_records = pull_mlb_pitching_stats(season)
+        load_mlb_pitching_to_db(pitching_records, season, db)
 
-        logger.info("  Refreshing FanGraphs batting stats...")
-        batting_df = pull_fg_batting(season, qual=30)
-        if batting_df is not None:
-            load_fg_batting_to_db(batting_df, season, db)
+        logger.info("  Refreshing MLB API batting stats...")
+        batting_records = pull_mlb_batting_stats(season)
+        load_mlb_batting_to_db(batting_records, season, db)
     except Exception as e:
-        logger.error(f"  FanGraphs refresh failed: {e}")
+        logger.error(f"  MLB API stats refresh failed: {e}")
 
     # 3. Recompute team stats with updated data
     compute_team_season_stats("CHC", season, db)
