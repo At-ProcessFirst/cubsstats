@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useApi } from '../hooks/useApi'
 import { usePlayerBenchmarks, useBenchmarks } from '../hooks/useBenchmarks'
-import { formatStat, ordinal, STAT_LABELS, STAT_EXPLANATIONS } from '../utils/formatting'
+import { formatStat, ordinal, STAT_LABELS, STAT_ABBREVS, STAT_EXPLANATIONS } from '../utils/formatting'
 import { gradeFromPercentile, LOWER_IS_BETTER, normalizeGradeKey } from '../utils/grading'
 import GradingLegend from '../components/GradingLegend'
 import GradeBadge from '../components/GradeBadge'
@@ -210,9 +210,12 @@ export default function PitchingLab() {
                   <div key={key}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold text-text-primary"
-                          style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span className="text-[10px] font-semibold text-text-primary">
                           {STAT_LABELS[key] || key}
+                        </span>
+                        <span className="text-[8px] text-text-secondary"
+                          style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {STAT_ABBREVS[key]}
                         </span>
                         {pctile != null && <GradeBadge grade={gradeFromPercentile(pctile).label} />}
                       </div>

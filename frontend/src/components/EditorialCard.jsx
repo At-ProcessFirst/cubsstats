@@ -1,12 +1,8 @@
+import { useNavigate } from 'react-router-dom'
+
 /**
  * Editorial insight card — analysis blurb with optional stat reference.
- *
- * @param {object} props
- * @param {string} props.title - Card title
- * @param {string} props.body - Analysis text
- * @param {string} [props.category] - Category tag (e.g. "Pitching", "Hitting")
- * @param {string} [props.timestamp] - When the insight was generated
- * @param {string} [props.accentColor] - Left border accent color
+ * Clickable — navigates to the Editorial page.
  */
 export default function EditorialCard({
   title,
@@ -15,9 +11,12 @@ export default function EditorialCard({
   timestamp,
   accentColor = '#60A5FA',
 }) {
+  const navigate = useNavigate()
+
   return (
     <div
-      className="bg-surface rounded-lg border border-white-8 p-4 hover:bg-surface-hover transition-colors"
+      onClick={() => navigate('/editorial')}
+      className="bg-surface rounded-lg border border-white-8 p-4 hover:bg-surface-hover transition-colors cursor-pointer"
       style={{ borderLeftWidth: 3, borderLeftColor: accentColor }}
     >
       {/* Header */}

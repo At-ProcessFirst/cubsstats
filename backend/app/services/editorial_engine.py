@@ -267,7 +267,7 @@ Write 2-3 paragraphs analyzing tonight's game in the context of the season. Refe
 
 
 def _generate_fallback_daily(game: Game, season: int, db: Session) -> str:
-    """Generate a data-driven fallback when Claude API is unavailable."""
+    """Generate analyst-voice post-game editorial from available data."""
     stats = db.query(TeamSeasonStats).filter(
         TeamSeasonStats.team == "CHC", TeamSeasonStats.season == season,
     ).first()
@@ -276,30 +276,70 @@ def _generate_fallback_daily(game: Game, season: int, db: Session) -> str:
     opp = game.away_team if is_home else game.home_team
     cubs_score = game.home_score if is_home else game.away_score
     opp_score = game.away_score if is_home else game.home_score
-    result = "defeated" if game.cubs_won else "fell to"
+    won = game.cubs_won
+    margin = abs((cubs_score or 0) - (opp_score or 0))
+    loc = "at Wrigley Field" if is_home else f"in {opp}"
 
-    parts = [f"The Cubs {result} the {opp} {cubs_score}-{opp_score} {'at Wrigley Field' if is_home else 'on the road'}."]
+    # Opening — set the scene
+    if won:
+        if margin >= 5:
+            opener = f"The Cubs rolled over the {opp} {cubs_score}-{opp_score} {loc} in a dominant wire-to-wire performance."
+        elif margin == 1:
+            opener = f"A nail-biter {loc} — the Cubs escaped with a {cubs_score}-{opp_score} win over the {opp} in a game that could have gone either way."
+        else:
+            opener = f"The Cubs took care of business {loc}, beating the {opp} {cubs_score}-{opp_score} in a solid all-around effort."
+    else:
+        if margin >= 5:
+            opener = f"A rough night {loc}. The {opp} hammered the Cubs {opp_score}-{cubs_score} in a game that got away from Chicago early."
+        elif margin == 1:
+            opener = f"A heartbreaker {loc}. The Cubs fell to the {opp} {opp_score}-{cubs_score} in a game decided by the thinnest of margins."
+        else:
+            opener = f"The Cubs came up short {loc}, dropping a {opp_score}-{cubs_score} decision to the {opp}."
 
-    if stats:
+    parts = [opener]
+
+    if stats and stats.games_played:
+        # Season context
+        pct = (stats.wins / stats.games_played * 100)
         parts.append(
-            f"Chicago moves to {stats.wins}-{stats.losses} on the season "
-            f"with a run differential of {'+' if (stats.run_diff or 0) >= 0 else ''}{stats.run_diff or 0}."
+            f"Chicago moves to {stats.wins}-{stats.losses} on the season, "
+            f"a {pct:.0f}% clip through {stats.games_played} games."
         )
-        if stats.pythag_wins and stats.wins:
+
+        # Pythagorean insight
+        if stats.pythag_wins and stats.wins is not None:
             diff = stats.wins - stats.pythag_wins
             if abs(diff) >= 1.5:
+                direction = "ahead of" if diff > 0 else "behind"
                 parts.append(
-                    f"Their Pythagorean record of {stats.pythag_wins:.0f}-{stats.pythag_losses:.0f} suggests they are "
-                    f"{'overperforming' if diff > 0 else 'underperforming'} by {abs(diff):.1f} wins."
+                    f"Here's where it gets interesting: their Expected Record based on run production "
+                    f"is {stats.pythag_wins:.0f}-{stats.pythag_losses:.0f}, meaning they're {abs(diff):.1f} wins "
+                    f"{direction} where their run scoring says they should be. "
+                    f"{'That kind of overperformance rarely lasts — expect some regression.' if diff > 0 else 'The wins should start coming if the underlying production holds.'}"
                 )
-        if stats.team_fip and stats.team_era:
-            gap = stats.team_era - stats.team_fip
-            if abs(gap) >= 0.3:
-                parts.append(
-                    f"The team ERA ({stats.team_era:.2f}) {'exceeds' if gap > 0 else 'trails'} "
-                    f"FIP ({stats.team_fip:.2f}) by {abs(gap):.2f}, "
-                    f"{'suggesting regression ahead' if gap < 0 else 'indicating room for improvement'}."
-                )
+
+        # Pitching insight
+        if stats.team_era is not None:
+            era_quality = "elite" if stats.team_era < 3.00 else "strong" if stats.team_era < 3.75 else "solid" if stats.team_era < 4.25 else "concerning"
+            parts.append(
+                f"The pitching staff continues to be {era_quality} with a {stats.team_era:.2f} ERA."
+            )
+            if stats.team_fip is not None:
+                gap = stats.team_era - stats.team_fip
+                if abs(gap) >= 0.30:
+                    parts.append(
+                        f"Their True Pitching Quality (FIP) sits at {stats.team_fip:.2f} — "
+                        f"{'lower than the ERA, suggesting the staff is actually even better than results show' if gap > 0 else 'higher than the ERA, meaning some luck has been going their way on the mound'}."
+                    )
+
+        # Offensive insight
+        if stats.team_wrc_plus is not None:
+            if stats.team_wrc_plus >= 105:
+                parts.append(f"The bats are rolling — a team Hitting Power score of {stats.team_wrc_plus:.0f} means they're producing {stats.team_wrc_plus - 100:.0f}% above league average at the plate.")
+            elif stats.team_wrc_plus <= 95:
+                parts.append(f"The bats need to wake up. A Hitting Power score of {stats.team_wrc_plus:.0f} means they're producing {100 - stats.team_wrc_plus:.0f}% below league average — and that's not going to cut it over 162 games.")
+            else:
+                parts.append(f"Offensively, they're right around league average with a Hitting Power score of {stats.team_wrc_plus:.0f}.")
 
     return " ".join(parts)
 
@@ -353,33 +393,77 @@ Write 3-4 paragraphs covering: (1) Where the Cubs stand overall with Pythagorean
 
 
 def _generate_fallback_weekly(season: int, db: Session) -> str:
+    """Generate analyst-voice weekly state editorial from available data."""
     stats = db.query(TeamSeasonStats).filter(
         TeamSeasonStats.team == "CHC", TeamSeasonStats.season == season,
     ).first()
 
-    if not stats:
-        return "Not enough data to generate a weekly summary. The season data will populate after running seed scripts."
+    if not stats or not stats.games_played:
+        return "The season is young and the data is still thin. Check back after the Cubs have a few more games under their belt — that's when the numbers start telling the real story."
 
-    parts = [
-        f"The Cubs sit at {stats.wins}-{stats.losses} through {stats.games_played} games this season.",
-    ]
-    if stats.pythag_wins:
+    pct = (stats.wins / stats.games_played * 100) if stats.games_played else 0
+
+    parts = []
+
+    # Opening — season state
+    if stats.games_played <= 20:
+        parts.append(f"We're {stats.games_played} games into the season and the numbers are starting to tell a story.")
+    else:
+        parts.append(f"Through {stats.games_played} games, the picture is getting clearer.")
+
+    parts.append(
+        f"The Cubs sit at {stats.wins}-{stats.losses}, a {pct:.0f}% winning percentage."
+    )
+
+    # Pythagorean analysis
+    if stats.pythag_wins is not None and stats.wins is not None:
+        diff = stats.wins - stats.pythag_wins
+        rd = stats.run_diff or 0
+        rd_str = f"+{rd}" if rd > 0 else str(rd)
         parts.append(
-            f"Their Pythagorean expectation is {stats.pythag_wins:.0f}-{stats.pythag_losses:.0f}, "
-            f"based on {stats.runs_scored} runs scored and {stats.runs_allowed} allowed "
-            f"(run differential: {'+' if (stats.run_diff or 0) >= 0 else ''}{stats.run_diff})."
-        )
-    if stats.team_fip:
-        parts.append(f"The pitching staff carries a {stats.team_fip:.2f} FIP.")
-    if stats.team_wrc_plus:
-        parts.append(
-            f"Offensively, the team wRC+ of {stats.team_wrc_plus:.0f} "
-            f"{'exceeds' if stats.team_wrc_plus > 100 else 'trails'} league average (100)."
+            f"Dig beneath the surface and their run differential of {rd_str} "
+            f"({stats.runs_scored} scored, {stats.runs_allowed} allowed) paints a "
+            f"{'rosier' if diff < -1 else 'slightly different' if abs(diff) >= 1 else 'consistent'} picture. "
+            f"Their Expected Record based on run production is {stats.pythag_wins:.0f}-{stats.pythag_losses:.0f}"
+            f"{' — meaning some bad breaks in close games are dragging down the win column' if diff < -1 else ' — suggesting they have been a bit lucky in close ones' if diff > 1 else ', right in line with reality'}."
         )
 
-    alerts = db.query(DivergenceAlert).filter(DivergenceAlert.is_active == True).count()
-    if alerts:
-        parts.append(f"There are {alerts} active divergence alerts worth monitoring.")
+    # Pitching assessment
+    if stats.team_era is not None:
+        tier = "top-tier" if stats.team_era < 3.20 else "upper-third" if stats.team_era < 3.75 else "middle-of-the-pack" if stats.team_era < 4.25 else "below-average"
+        parts.append(
+            f"On the mound, the rotation ERA of {stats.team_era:.2f} is {tier} in the league."
+        )
+        if stats.team_fip is not None and abs(stats.team_era - stats.team_fip) >= 0.25:
+            gap = stats.team_era - stats.team_fip
+            parts.append(
+                f"Their True Pitching Quality (FIP: {stats.team_fip:.2f}) "
+                f"{'is actually better than results show — expect the ERA to come down' if gap > 0 else 'suggests some regression may be coming — the defense and luck have been covering for the staff'}."
+            )
+        if stats.team_k_pct is not None:
+            parts.append(f"The staff is punching out batters at a {stats.team_k_pct:.1f}% clip.")
+
+    # Offensive assessment
+    if stats.team_wrc_plus is not None:
+        above_below = stats.team_wrc_plus - 100
+        if above_below >= 5:
+            parts.append(f"The bats are a strength — a team Hitting Power of {stats.team_wrc_plus:.0f} means they're producing {above_below:.0f}% above league average at the plate.")
+        elif above_below <= -5:
+            parts.append(f"The offense needs to find another gear. A Hitting Power score of {stats.team_wrc_plus:.0f} means they're producing {abs(above_below):.0f}% below league average — and that's holding this team back.")
+        else:
+            parts.append(f"The offense is hovering right around league average with a Hitting Power score of {stats.team_wrc_plus:.0f} — functional but not dominant.")
+
+    # Top performers
+    pitchers = db.query(PitcherSeasonStats).filter(
+        PitcherSeasonStats.season == season, PitcherSeasonStats.team == "CHC",
+        PitcherSeasonStats.ip >= 5,
+    ).order_by(PitcherSeasonStats.era.asc()).limit(2).all()
+
+    if pitchers:
+        top = pitchers[0]
+        player = db.query(Player).filter(Player.mlb_id == top.player_id).first()
+        name = player.name if player else "The ace"
+        parts.append(f"Keep an eye on {name} — a {top.era:.2f} ERA through {top.ip:.1f} innings is the kind of anchor this rotation needs.")
 
     return " ".join(parts)
 
@@ -513,24 +597,44 @@ def _generate_fallback_recap(model_status: dict, season: int, db: Session) -> st
     game = model_status.get("game_outcome", {})
     trend = model_status.get("win_trend", {})
 
-    parts = ["This week's model performance review:"]
+    stats = db.query(TeamSeasonStats).filter(
+        TeamSeasonStats.team == "CHC", TeamSeasonStats.season == season,
+    ).first()
+
+    parts = []
 
     if game.get("status") == "trained":
         parts.append(
-            f"The Game Outcome model (XGBoost) achieved {game['cv_accuracy']:.1%} cross-validated accuracy "
-            f"across {game['samples']} games — compared to the 50% coin-flip baseline and ~54% home-advantage baseline."
+            f"The Game Outcome model is live, hitting {game['cv_accuracy']:.1%} accuracy "
+            f"across {game['samples']} games — well above the 50% coin-flip baseline. "
+            f"For context, Vegas typically lands around 55% on straight win/loss picks."
         )
     else:
-        parts.append("The Game Outcome model is pending training — it needs sufficient historical game data.")
+        gp = stats.games_played if stats else 0
+        parts.append(
+            f"The prediction models are still in the learning phase. We're {gp} games into "
+            f"the season and the Game Outcome model needs at least 30 games of data before "
+            f"it can start making reliable picks. Think of it like a starting pitcher — "
+            f"you don't judge the stuff after one inning."
+        )
 
     if trend.get("status") == "trained":
         parts.append(
-            f"The Win Trend model (Ridge regression) predicts next-10-game win totals with an average error of "
-            f"±{trend['cv_mae']:.1f} wins, trained on {trend['samples']} sliding windows."
+            f"The Win Trend model is projecting forward with an average error of "
+            f"plus or minus {trend['cv_mae']:.1f} wins over 10-game windows."
         )
-    else:
-        parts.append("The Win Trend model is pending — it needs 40+ games in a season to train.")
+    elif stats and stats.games_played:
+        parts.append(
+            f"The Win Trend model kicks in at 40 games — we're at {stats.games_played}. "
+            f"In the meantime, the Pythagorean projection based on run differential "
+            f"gives us a solid baseline for where this team should be."
+        )
 
-    parts.append("The Regression Detection system runs continuously, flagging stats that diverge significantly from MLB benchmarks.")
+    parts.append(
+        "The Regression Detection system is always running, flagging any Cub whose "
+        "numbers are significantly out of line with MLB benchmarks. When a guy's "
+        "surface stats diverge from his underlying quality metrics, that's where "
+        "the real value is — spotting the breakouts and the corrections before they happen."
+    )
 
     return " ".join(parts)

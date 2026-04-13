@@ -79,18 +79,18 @@ function TopMetrics({ teamStats, record, getBenchmark }) {
         min: 0, max: 100,
       },
       {
-        label: 'Pythag W-L',
-        plainEnglish: 'Expected record from runs scored vs allowed',
+        label: 'Expected Record',
+        plainEnglish: 'Based on runs scored vs allowed',
         value: null,
-        displayValue: pythW != null ? `${pythW}-${pythL}` : '—',
+        displayValue: pythW != null ? `${Math.round(pythW)}-${Math.round(pythL)}` : '—',
         statName: 'pythag',
-        subtitle: record?.run_diff != null ? `Run diff: ${formatDelta(record.run_diff, 0)}` : null,
+        subtitle: record?.run_diff != null ? `Run Margin: ${formatDelta(record.run_diff, 0)}` : null,
         percentile: gp && pythW != null ? Math.round((pythW / gp) * 100) : null,
         min: 0, max: 100,
       },
       {
-        label: 'Team wRC+',
-        plainEnglish: STAT_EXPLANATIONS.wrc_plus || 'Overall hitting value (100 = average)',
+        label: 'Hitting Power',
+        plainEnglish: 'League-adjusted value, 100 = average',
         value: teamStats?.team_wrc_plus,
         statName: 'wrc_plus',
         positionGroup: 'ALL_HITTERS',
@@ -98,8 +98,8 @@ function TopMetrics({ teamStats, record, getBenchmark }) {
         lowerIsBetter: false,
       },
       {
-        label: 'Team FIP',
-        plainEnglish: STAT_EXPLANATIONS.fip || 'Pitching quality (defense-independent)',
+        label: 'True Pitching Quality',
+        plainEnglish: 'ERA removing luck and defense (FIP)',
         value: teamStats?.team_fip,
         statName: 'fip',
         positionGroup: 'SP',
@@ -107,7 +107,7 @@ function TopMetrics({ teamStats, record, getBenchmark }) {
         lowerIsBetter: true,
       },
       {
-        label: 'Run Diff',
+        label: 'Run Margin',
         plainEnglish: 'Runs scored minus runs allowed',
         value: teamStats?.run_diff ?? record?.run_diff,
         statName: 'run_diff',
@@ -262,7 +262,7 @@ function BaselinePill({ label, value, accent }) {
 }
 
 // ---------------------------------------------------------------------------
-// Section: Pitching Summary (ERA vs FIP)
+// Section: Pitching Summary (Actual vs True ERA)
 // ---------------------------------------------------------------------------
 
 function PitchingSummary({ pitchers, getBenchmark, loading }) {
@@ -283,10 +283,10 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
         className="text-[11px] uppercase tracking-widest text-text-secondary mb-1"
         style={{ fontFamily: "'JetBrains Mono', monospace" }}
       >
-        PITCHING — ERA VS FIP
+        ACTUAL VS TRUE ERA
       </h3>
       <p className="text-[10px] text-accent-blue italic mb-3">
-        FIP removes luck and defense — big ERA-FIP gaps signal regression
+        Big gaps between ERA and True Pitching Quality mean luck will run out
       </p>
 
       {loading ? (
@@ -302,7 +302,7 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
             <span className="text-[8px] uppercase text-text-secondary w-[90px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>ERA</span>
             <span className="text-[8px] uppercase text-text-secondary w-[90px]"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}>FIP</span>
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>True ERA</span>
             <span className="text-[8px] uppercase text-text-secondary flex-1"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Gap</span>
           </div>
@@ -329,8 +329,8 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
                 barColor={gapColor}
                 explanation={gap != null
                   ? Math.abs(gap) >= 0.5
-                    ? `Gap of ${Math.abs(gap).toFixed(2)} — ${gap > 0 ? 'ERA may drop: pitching better than results' : 'ERA may rise: defense or luck masking true performance'}`
-                    : `ERA and FIP aligned — stable performance`
+                    ? `Gap of ${Math.abs(gap).toFixed(2)} — ${gap > 0 ? 'Actual ERA may drop: true pitching quality is better than results show' : 'Actual ERA may rise: luck or defense has been masking true performance'}`
+                    : `ERA and True ERA aligned — stable, reliable performance`
                   : null
                 }
               />
@@ -345,7 +345,7 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
               </span>
               {fipBench && (
                 <span className="text-[9px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  MLB avg FIP: {fipBench.mean?.toFixed(2)}
+                  MLB avg True ERA: {fipBench.mean?.toFixed(2)}
                 </span>
               )}
             </div>
@@ -357,7 +357,7 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
 }
 
 // ---------------------------------------------------------------------------
-// Section: Hitting Summary (xwOBA vs wOBA)
+// Section: Hitting Summary (Expected vs Actual Hitting)
 // ---------------------------------------------------------------------------
 
 function HittingSummary({ hitters, getBenchmark, loading }) {
@@ -378,10 +378,10 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
         className="text-[11px] uppercase tracking-widest text-text-secondary mb-1"
         style={{ fontFamily: "'JetBrains Mono', monospace" }}
       >
-        HITTING — xwOBA VS wOBA
+        EXPECTED VS ACTUAL HITTING
       </h3>
       <p className="text-[10px] text-accent-blue italic mb-3">
-        xwOBA measures contact quality — gaps predict future production changes
+        Contact quality vs real results — gaps predict future production changes
       </p>
 
       {loading ? (
@@ -395,9 +395,9 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
             <span className="text-[8px] uppercase text-text-secondary w-[140px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Hitter</span>
             <span className="text-[8px] uppercase text-text-secondary w-[90px]"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}>wOBA</span>
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>Actual</span>
             <span className="text-[8px] uppercase text-text-secondary w-[90px]"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}>xwOBA</span>
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>Expected</span>
             <span className="text-[8px] uppercase text-text-secondary flex-1"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Gap</span>
           </div>
@@ -424,8 +424,8 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
                 barColor={gapColor}
                 explanation={gap != null
                   ? Math.abs(gap) >= 0.020
-                    ? `Gap of ${Math.abs(gap).toFixed(3)} — ${gap > 0 ? 'wOBA likely to drop: overperforming contact quality' : 'wOBA likely to rise: underperforming contact quality'}`
-                    : 'wOBA and xwOBA aligned — production matches contact quality'
+                    ? `Gap of ${Math.abs(gap).toFixed(3)} — ${gap > 0 ? 'Actual results likely to drop: outperforming contact quality' : 'Actual results likely to rise: contact quality is better than results show'}`
+                    : 'Expected and actual hitting aligned — production matches contact quality'
                   : null
                 }
               />
@@ -435,11 +435,11 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
           {wobaBench && (
             <div className="mt-2 pt-2 border-t border-white-8 flex items-center gap-4">
               <span className="text-[9px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                MLB avg wOBA: {wobaBench.mean?.toFixed(3)}
+                MLB avg actual: {wobaBench.mean?.toFixed(3)}
               </span>
               {xwobaBench && (
                 <span className="text-[9px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  MLB avg xwOBA: {xwobaBench.mean?.toFixed(3)}
+                  MLB avg expected: {xwobaBench.mean?.toFixed(3)}
                 </span>
               )}
             </div>

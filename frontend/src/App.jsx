@@ -20,17 +20,24 @@ const NAV_ITEMS = [
 function CubsLogo() {
   return (
     <div
-      className="flex-shrink-0 flex items-center justify-center rounded-full font-bold text-white"
+      className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center"
       style={{
         width: 44,
         height: 44,
         backgroundColor: '#0E3386',
         border: '3px solid #CC3433',
-        fontSize: 22,
-        fontFamily: "'DM Sans', sans-serif",
       }}
     >
-      C
+      <img
+        src="https://www.mlbstatic.com/team-logos/112.svg"
+        alt="Chicago Cubs"
+        width={34}
+        height={34}
+        onError={(e) => {
+          e.target.style.display = 'none'
+          e.target.parentElement.innerHTML = '<span style="color:white;font-weight:bold;font-size:22px">C</span>'
+        }}
+      />
     </div>
   )
 }
