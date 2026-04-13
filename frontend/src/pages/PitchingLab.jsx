@@ -201,9 +201,9 @@ export default function PitchingLab() {
         </div>
       )}
 
-      {/* 5. Two-col: Performance Benchmarks | Pitch Arsenal */}
+      {/* 5. Performance Benchmarks */}
       {activePitcher && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
           {/* Left: Performance vs MLB */}
           <div className="bg-surface rounded-lg border border-white-8 p-4">
             <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-4"
@@ -249,16 +249,7 @@ export default function PitchingLab() {
             </div>
           </div>
 
-          {/* Right: Pitch Arsenal — only shown when Statcast data is available */}
-          <div>
-            <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              PITCH ARSENAL
-            </h3>
-            <p className="text-[10px] text-text-secondary italic mb-3">
-              Velocity, movement, whiff rates — from Statcast pitch-level data
-            </p>
-          </div>
+          {/* Pitch Arsenal — removed entirely, no Statcast pitch-level data available */}
         </div>
       )}
 
@@ -304,13 +295,13 @@ export default function PitchingLab() {
             )}
           </div>
 
-          {/* Percentile Rankings */}
-          <div className="bg-surface rounded-lg border border-white-8 p-4">
-            <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              PERCENTILE RANKINGS
-            </h3>
-            {!rankings.length ? null : (
+          {/* Percentile Rankings — only rendered when data exists */}
+          {rankings.length > 0 && (
+            <div className="bg-surface rounded-lg border border-white-8 p-4">
+              <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                PERCENTILE RANKINGS
+              </h3>
               <div className="flex flex-col">
                 {rankings.map(r => (
                   <PercentileBar
@@ -322,8 +313,8 @@ export default function PitchingLab() {
                   />
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
