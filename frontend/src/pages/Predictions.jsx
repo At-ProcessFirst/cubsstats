@@ -147,19 +147,20 @@ export default function Predictions() {
           </p>
           <div className="flex flex-col gap-1.5">
             {(featureData?.game_outcome?.features || Object.entries(FEATURE_LABELS).map(([name, label]) => ({ name, label, importance: 0 })))
+              .filter(f => f.importance > 0)  // Only show features with actual weights
               .sort((a, b) => (b.importance || 0) - (a.importance || 0))
               .map(f => {
-                const pct = f.importance ? (f.importance * 100) : null
+                const pct = f.importance * 100
                 return (
                   <div key={f.name} className="flex items-center gap-2">
                     <span className="text-[10px] text-text-primary w-[130px] truncate">{f.label}</span>
                     <div className="flex-1 h-[6px] rounded-full bg-surface-hover overflow-hidden">
                       <div className="h-full rounded-full bg-accent-blue transition-all"
-                        style={{ width: `${pct ? Math.max(5, pct * 4) : 12}%` }} />
+                        style={{ width: `${Math.max(5, pct * 4)}%` }} />
                     </div>
                     <span className="text-[10px] text-text-secondary w-[40px] text-right"
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {pct != null ? `${pct.toFixed(1)}%` : '—'}
+                      {pct.toFixed(1)}%
                     </span>
                   </div>
                 )

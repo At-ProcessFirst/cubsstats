@@ -257,6 +257,130 @@ def seed_games(db, season: int):
     logger.info(f"  Season {season} total: {total_api} games from API, {total_new} new inserts")
 
 
+def seed_game_logs(db, season: int):
+    """Pull game-by-game stats for each Cubs pitcher and hitter from MLB Stats API."""
+    logger.info(f"=== Cubs game logs for {season} ===")
+
+    from app.models.database import PitcherGameStats, HitterGameStats
+
+    roster = []
+    try:
+        roster = pull_cubs_roster(season)
+    except Exception as e:
+        logger.error(f"  Roster pull failed: {e}")
+        return
+
+    pitcher_logs = 0
+    hitter_logs = 0
+
+    for rp in roster:
+        mlb_id = rp["mlb_id"]
+        name = rp["name"]
+        pos_type = rp.get("position_type", "")
+
+        try:
+            if pos_type == "Pitcher" or rp["position"] == "P":
+                data = mlb_api_get(f"/people/{mlb_id}/stats", {
+                    "stats": "gameLog", "season": season, "group": "pitching",
+                })
+                for sg in data.get("stats", []):
+                    for split in sg.get("splits", []):
+                        stat = split.get("stat", {})
+                        game_info = split.get("game", {})
+                        date_str = split.get("date", "")
+                        if not date_str:
+                            continue
+                        from datetime import date as d
+                        try:
+                            gd = d.fromisoformat(date_str)
+                        except Exception:
+                            continue
+
+                        game_pk = game_info.get("gamePk")
+                        existing = db.query(PitcherGameStats).filter(
+                            PitcherGameStats.player_id == mlb_id,
+                            PitcherGameStats.game_date == gd,
+                        ).first()
+                        if existing:
+                            continue
+
+                        ip_str = stat.get("inningsPitched", "0")
+                        try:
+                            ip = float(ip_str)
+                        except (ValueError, TypeError):
+                            ip = 0
+
+                        db.add(PitcherGameStats(
+                            player_id=mlb_id, game_pk=game_pk, game_date=gd,
+                            season=season, ip=ip,
+                            hits=_safe_int(stat.get("hits")),
+                            runs=_safe_int(stat.get("runs")),
+                            earned_runs=_safe_int(stat.get("earnedRuns")),
+                            walks=_safe_int(stat.get("baseOnBalls")),
+                            strikeouts=_safe_int(stat.get("strikeOuts")),
+                            home_runs=_safe_int(stat.get("homeRuns")),
+                            pitches=_safe_int(stat.get("numberOfPitches")),
+                            era=_safe_float(stat.get("era")) if stat.get("era") != "-.--" else None,
+                        ))
+                        pitcher_logs += 1
+            else:
+                data = mlb_api_get(f"/people/{mlb_id}/stats", {
+                    "stats": "gameLog", "season": season, "group": "hitting",
+                })
+                for sg in data.get("stats", []):
+                    for split in sg.get("splits", []):
+                        stat = split.get("stat", {})
+                        game_info = split.get("game", {})
+                        date_str = split.get("date", "")
+                        if not date_str:
+                            continue
+                        from datetime import date as d
+                        try:
+                            gd = d.fromisoformat(date_str)
+                        except Exception:
+                            continue
+
+                        game_pk = game_info.get("gamePk")
+                        existing = db.query(HitterGameStats).filter(
+                            HitterGameStats.player_id == mlb_id,
+                            HitterGameStats.game_date == gd,
+                        ).first()
+                        if existing:
+                            continue
+
+                        db.add(HitterGameStats(
+                            player_id=mlb_id, game_pk=game_pk, game_date=gd,
+                            season=season,
+                            ab=_safe_int(stat.get("atBats")),
+                            hits=_safe_int(stat.get("hits")),
+                            doubles=_safe_int(stat.get("doubles")),
+                            triples=_safe_int(stat.get("triples")),
+                            home_runs=_safe_int(stat.get("homeRuns")),
+                            rbi=_safe_int(stat.get("rbi")),
+                            walks=_safe_int(stat.get("baseOnBalls")),
+                            strikeouts=_safe_int(stat.get("strikeOuts")),
+                            stolen_bases=_safe_int(stat.get("stolenBases")),
+                        ))
+                        hitter_logs += 1
+
+            db.flush()
+            time.sleep(0.1)
+        except Exception as e:
+            logger.warning(f"  Game log failed for {name}: {e}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
+    try:
+        db.commit()
+    except Exception as e:
+        logger.error(f"  Game log commit failed: {e}")
+        db.rollback()
+
+    logger.info(f"  Game logs: {pitcher_logs} pitcher entries, {hitter_logs} hitter entries")
+
+
 def main():
     parser = argparse.ArgumentParser(description="CubsStats Historical Data Seed")
     parser.add_argument("--clear", action="store_true", help="Drop all tables and re-create")
@@ -294,7 +418,11 @@ def main():
             # 3. Cubs game schedule + results
             seed_games(db, season)
 
-            # 4. Team aggregates
+            # 4. Game logs for current season Cubs players
+            if season >= CURRENT_YEAR - 1:  # Only pull game logs for recent seasons
+                seed_game_logs(db, season)
+
+            # 5. Team aggregates
             logger.info(f"  Computing team stats for CHC {season}...")
             compute_team_season_stats("CHC", season, db)
 

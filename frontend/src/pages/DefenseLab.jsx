@@ -34,7 +34,7 @@ export default function DefenseLab() {
       <div>
         <h1 className="text-xl font-bold text-text-primary">Defense Lab</h1>
         <p className="text-sm text-text-secondary mt-1">
-          Fielding metrics for every Cubs defender — OAA, DRS, and catcher framing all benchmarked
+          Cubs fielding analysis — advanced metrics (OAA, DRS, Framing) from Statcast available mid-season
         </p>
       </div>
 
@@ -69,7 +69,7 @@ export default function DefenseLab() {
           </div>
         ) : !sortedDefenders.length ? (
           <p className="text-sm text-text-secondary italic py-8 text-center">
-            Advanced defensive metrics (OAA, DRS, Framing) require Statcast data released mid-season
+            Advanced defensive metrics from Statcast are released mid-season. Check back in June for OAA, DRS, and Framing data
           </p>
         ) : (
           <div>
