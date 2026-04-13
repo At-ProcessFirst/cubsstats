@@ -34,6 +34,8 @@ def main():
     parser = argparse.ArgumentParser(description="Generate CubsStats editorials")
     parser.add_argument("--type", choices=["daily", "weekly", "spotlight", "recap", "all"],
                         default="all", help="Editorial type to generate")
+    parser.add_argument("--clear", action="store_true",
+                        help="Delete all existing editorials before generating new ones")
     args = parser.parse_args()
 
     init_db()
@@ -42,6 +44,10 @@ def main():
     generated = []
 
     try:
+        if args.clear:
+            deleted = db.query(Editorial).delete()
+            db.commit()
+            logger.info(f"Cleared {deleted} existing editorial(s)")
         if args.type in ("daily", "all"):
             # Find most recent Final Cubs game
             game = db.query(Game).filter(

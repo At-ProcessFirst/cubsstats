@@ -344,29 +344,42 @@ def _update_model_meta(updates: dict):
 
 
 def get_model_status() -> dict:
-    """Get status of all models for the API."""
+    """Get status of all models for the API.
+
+    Checks both the metadata file AND the existence of model files on disk,
+    so status is accurate even if meta and files get out of sync.
+    """
     meta = _load_model_meta()
 
     game_outcome = meta.get("game_outcome", {})
     win_trend = meta.get("win_trend", {})
 
+    # If joblib files exist but meta says untrained, the meta is stale
+    go_status = game_outcome.get("status", "model_not_trained")
+    if go_status == "model_not_trained" and os.path.exists(GAME_OUTCOME_PATH):
+        go_status = "trained"
+
+    wt_status = win_trend.get("status", "model_not_trained")
+    if wt_status == "model_not_trained" and os.path.exists(WIN_TREND_PATH):
+        wt_status = "trained"
+
     return {
         "game_outcome": {
-            "status": game_outcome.get("status", "model_not_trained"),
+            "status": go_status,
             "trained_at": game_outcome.get("trained_at"),
             "cv_accuracy": game_outcome.get("cv_accuracy"),
             "samples": game_outcome.get("samples", 0),
             "feature_importance": game_outcome.get("feature_importance", {}),
         },
         "win_trend": {
-            "status": win_trend.get("status", "model_not_trained"),
+            "status": wt_status,
             "trained_at": win_trend.get("trained_at"),
             "cv_mae": win_trend.get("cv_mae"),
             "samples": win_trend.get("samples", 0),
             "feature_coefficients": win_trend.get("feature_coefficients", {}),
         },
         "regression_detection": {
-            "status": "active",  # Z-score model is always "active" — no training needed
+            "status": "active",
             "method": "z-score anomaly detection",
         },
     }

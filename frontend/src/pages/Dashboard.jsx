@@ -454,13 +454,13 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
 // Section: Defense & Model Quality
 // ---------------------------------------------------------------------------
 
-function DefenseModelPanel({ teamStats, predictions, loading }) {
+function DefenseModelPanel({ teamStats, modelStatus, loading }) {
   const defenseStats = [
     { label: 'Team ERA', value: teamStats?.team_era, statName: 'era' },
-    { label: 'Team K%', value: teamStats?.team_k_pct, statName: 'k_pct' },
-    { label: 'Team BB%', value: teamStats?.team_bb_pct, statName: 'bb_pct' },
-    { label: 'Hard Hit%', value: teamStats?.team_hard_hit_pct, statName: 'hard_hit_pct' },
-    { label: 'Barrel%', value: teamStats?.team_barrel_pct, statName: 'barrel_pct' },
+    { label: 'Team Strikeout Rate', value: teamStats?.team_k_pct, statName: 'k_pct' },
+    { label: 'Team Walk Rate', value: teamStats?.team_bb_pct, statName: 'bb_pct' },
+    { label: 'Hard Contact Rate', value: teamStats?.team_hard_hit_pct, statName: 'hard_hit_pct' },
+    { label: 'Damage Rate', value: teamStats?.team_barrel_pct, statName: 'barrel_pct' },
   ]
 
   return (
@@ -505,17 +505,17 @@ function DefenseModelPanel({ teamStats, predictions, loading }) {
             <ModelStatusRow
               label="Game Outcome"
               model="XGBoost"
-              status={predictions?.status || 'model_not_trained'}
+              status={modelStatus?.game_outcome?.status || 'model_not_trained'}
             />
             <ModelStatusRow
               label="Win Trend"
               model="Ridge"
-              status="model_not_trained"
+              status={modelStatus?.win_trend?.status || 'model_not_trained'}
             />
             <ModelStatusRow
               label="Regression"
               model="Z-score"
-              status="model_not_trained"
+              status={modelStatus?.regression_detection?.status || 'model_not_trained'}
             />
           </div>
         </>
@@ -617,6 +617,7 @@ export default function Dashboard() {
   const { data: cubsPitching, loading: pitchLoading } = useApi('/pitching/cubs/enriched')
   const { data: cubsHitting, loading: hitLoading } = useApi('/hitting/cubs/enriched')
   const { getBenchmark, loading: benchLoading } = useBenchmarks()
+  const { data: modelStatus } = useApi('/predictions/model-status')
 
   const isLoading = teamLoading || recordLoading || benchLoading
 
@@ -695,7 +696,7 @@ export default function Dashboard() {
         />
         <DefenseModelPanel
           teamStats={teamStats}
-          predictions={predictions}
+          modelStatus={modelStatus}
           loading={teamLoading}
         />
       </div>
