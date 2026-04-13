@@ -272,19 +272,33 @@ export default function PitchingLab() {
             playerName={activePitcher.name}
           />
 
-          {/* Recent Starts */}
+          {/* Season Summary */}
           <div className="bg-surface rounded-lg border border-white-8 p-4">
             <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              RECENT STARTS
+              SEASON SUMMARY
             </h3>
-            <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-              Season game log
+            <div className="flex flex-col gap-2">
+              {[
+                { label: 'Games', value: activePitcher.games },
+                { label: 'Starts', value: activePitcher.games_started },
+                { label: 'Innings', value: activePitcher.ip?.toFixed(1) },
+                { label: 'ERA', value: activePitcher.era?.toFixed(2) },
+                { label: 'True ERA (FIP)', value: activePitcher.fip?.toFixed(2) },
+                { label: 'Strikeout Rate', value: activePitcher.k_pct ? `${activePitcher.k_pct.toFixed(1)}%` : null },
+                { label: 'Walk Rate', value: activePitcher.bb_pct ? `${activePitcher.bb_pct.toFixed(1)}%` : null },
+              ].filter(s => s.value != null).map(s => (
+                <div key={s.label} className="flex items-center justify-between py-0.5">
+                  <span className="text-[10px] text-text-secondary">{s.label}</span>
+                  <span className="text-[12px] font-bold text-text-primary"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}>{s.value}</span>
+                </div>
+              ))}
             </div>
             {getBenchmark('era', posGroup) && (
               <div className="mt-2 pt-2 border-t border-white-8">
                 <span className="text-[9px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  MLB avg start: {getBenchmark('era', posGroup)?.mean?.toFixed(2)} ERA
+                  MLB avg ERA: {getBenchmark('era', posGroup)?.mean?.toFixed(2)}
                 </span>
               </div>
             )}
@@ -296,11 +310,7 @@ export default function PitchingLab() {
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               PERCENTILE RANKINGS
             </h3>
-            {!rankings.length ? (
-              <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-                Rankings based on league benchmarks
-              </div>
-            ) : (
+            {!rankings.length ? null : (
               <div className="flex flex-col">
                 {rankings.map(r => (
                   <PercentileBar

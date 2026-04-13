@@ -271,28 +271,38 @@ export default function HittingLab() {
       {/* Three-col: Recent Games | Percentile Rankings | Season Splits */}
       {activeHitter && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Recent Games */}
+          {/* Season Summary */}
           <div className="bg-surface rounded-lg border border-white-8 p-4">
             <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              RECENT GAMES
+              SEASON SUMMARY
             </h3>
-            <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-              Season game log
+            <div className="flex flex-col gap-2">
+              {[
+                { label: 'Games', value: activeHitter.games },
+                { label: 'Plate Appearances', value: activeHitter.pa },
+                { label: 'At Bats', value: activeHitter.ab },
+                { label: 'Batting Average', value: activeHitter.avg?.toFixed(3) },
+                { label: 'On-Base %', value: activeHitter.obp?.toFixed(3) },
+                { label: 'Slugging', value: activeHitter.slg?.toFixed(3) },
+                { label: 'wOBA', value: activeHitter.woba?.toFixed(3) },
+              ].filter(s => s.value != null).map(s => (
+                <div key={s.label} className="flex items-center justify-between py-0.5">
+                  <span className="text-[10px] text-text-secondary">{s.label}</span>
+                  <span className="text-[12px] font-bold text-text-primary"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}>{s.value}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Percentile Rankings */}
+          {/* Percentile Rankings — only shown when benchmark data exists */}
+          {rankings.length > 0 && (
           <div className="bg-surface rounded-lg border border-white-8 p-4">
             <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               PERCENTILE RANKINGS
             </h3>
-            {!rankings.length ? (
-              <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-                Rankings based on league benchmarks
-              </div>
-            ) : (
               <div className="flex flex-col">
                 {rankings.map(r => (
                   <PercentileBar key={r.stat_name}
@@ -300,10 +310,10 @@ export default function HittingLab() {
                     value={r.value} percentile={r.percentile} statName={r.stat_name} />
                 ))}
               </div>
-            )}
           </div>
+          )}
 
-          {/* Batted Ball Profile — show only stats that have data */}
+          {/* Key Stats — show only stats that have data */}
           <div className="bg-surface rounded-lg border border-white-8 p-4">
             <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>

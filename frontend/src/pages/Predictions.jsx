@@ -22,6 +22,7 @@ export default function Predictions() {
   const { data: upcoming, loading: upLoading } = useApi('/team/upcoming?limit=10')
   const { data: trendData } = useApi('/team/win-trend')
   const { data: record } = useApi('/team/record')
+  const { data: featureData } = useApi('/predictions/feature-importance')
 
   const gameModelStatus = predictions?.status || 'model_not_trained'
   const trendModelStatus = winTrend?.status || 'model_not_trained'
@@ -142,23 +143,28 @@ export default function Predictions() {
             WHAT DRIVES PREDICTIONS
           </h3>
           <p className="text-[10px] text-accent-blue italic mb-3">
-            Plain English labels show what each ML feature means in baseball terms
+            Which factors matter most for predicting Cubs wins
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {Object.entries(FEATURE_LABELS).map(([key, label]) => (
-              <div key={key} className="flex items-center gap-2 py-1.5 px-3 rounded bg-surface-hover">
-                <div className="w-1.5 h-6 rounded-full bg-accent-blue opacity-30" />
-                <div>
-                  <span className="text-[10px] text-text-primary font-medium block">{label}</span>
-                  <span className="text-[8px] text-text-secondary"
-                    style={{ fontFamily: "'JetBrains Mono', monospace" }}>{key}</span>
-                </div>
-              </div>
-            ))}
+          <div className="flex flex-col gap-1.5">
+            {(featureData?.game_outcome?.features || Object.entries(FEATURE_LABELS).map(([name, label]) => ({ name, label, importance: 0 })))
+              .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+              .map(f => {
+                const pct = f.importance ? (f.importance * 100) : null
+                return (
+                  <div key={f.name} className="flex items-center gap-2">
+                    <span className="text-[10px] text-text-primary w-[130px] truncate">{f.label}</span>
+                    <div className="flex-1 h-[6px] rounded-full bg-surface-hover overflow-hidden">
+                      <div className="h-full rounded-full bg-accent-blue transition-all"
+                        style={{ width: `${pct ? Math.max(5, pct * 4) : 12}%` }} />
+                    </div>
+                    <span className="text-[10px] text-text-secondary w-[40px] text-right"
+                      style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      {pct != null ? `${pct.toFixed(1)}%` : '—'}
+                    </span>
+                  </div>
+                )
+              })}
           </div>
-          <p className="text-[10px] text-text-secondary italic mt-3">
-            Trained on 304 games from 2024-2025. Top drivers: pitching quality, hitting production, run margin.
-          </p>
         </div>
       </div>
 

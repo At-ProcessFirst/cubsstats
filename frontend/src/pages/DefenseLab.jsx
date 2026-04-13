@@ -69,7 +69,7 @@ export default function DefenseLab() {
           </div>
         ) : !sortedDefenders.length ? (
           <p className="text-sm text-text-secondary italic py-8 text-center">
-            Advanced defensive metrics (OAA, DRS) available mid-season from Statcast
+            Advanced defensive metrics (OAA, DRS, Framing) require Statcast data released mid-season
           </p>
         ) : (
           <div>
