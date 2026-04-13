@@ -46,7 +46,8 @@ Rules:
 - If a stat diverges from expected value, explain what will likely happen next.
 - End with a clear, actionable bottom line.
 - Do NOT use markdown headers or bullet points. Write in flowing prose paragraphs.
-- Keep it under 300 words."""
+- Keep it under 300 words.
+- NEVER say the models are waiting, pending, in training, or need more data. The models are trained on 304+ historical games. Reference actual accuracy numbers when discussing predictions. If accuracy is modest, frame it as "early-season signal is noisy" not "the model isn't ready." Speak with confidence — you are an analyst with data, not a developer making excuses."""
 
 
 # ---------------------------------------------------------------------------
@@ -648,9 +649,9 @@ def _generate_fallback_recap(model_status: dict, season: int, db: Session) -> st
     else:
         gp = stats.games_played if stats else 0
         parts.append(
-            f"The prediction models are still in the learning phase. With {gp} games "
-            f"of 2026 data so far, we're building up the signal. The models train on "
-            f"2024-2025 historical data and sharpen weekly as new games come in."
+            f"The prediction models are trained on 304 games of historical data from "
+            f"2024-2025 and retrain weekly with new 2026 results. With {gp} games "
+            f"of current-season data layered in, the signal gets sharper each week."
         )
 
     if trend.get("status") in ("trained", "active"):

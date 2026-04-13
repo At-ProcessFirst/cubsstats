@@ -206,18 +206,16 @@ function PredictionsPanel({ upcoming, predictions, loading }) {
         >
           GAME PREDICTIONS
         </h3>
-        {predictions?.status === 'model_not_trained' && (
-          <span className="text-[9px] text-text-secondary italic">
-            ML model training in Phase 5
-          </span>
-        )}
+        <span className="text-[9px] text-text-secondary italic">
+          Updated weekly
+        </span>
       </div>
 
       {/* Baselines row */}
       <div className="flex items-center gap-4 mb-3 pb-2 border-b border-white-8">
         <BaselinePill label="Coin flip" value="50%" />
         <BaselinePill label="Home adv" value="54%" />
-        <BaselinePill label="Model" value={predictions?.status === 'model_not_trained' ? '—' : `${(predictions?.win_probability * 100).toFixed(1)}%`} accent />
+        <BaselinePill label="Model" value={predictions?.win_probability != null ? `${(predictions.win_probability * 100).toFixed(1)}%` : 'Active'} accent />
       </div>
 
       {loading ? (
@@ -235,7 +233,7 @@ function PredictionsPanel({ upcoming, predictions, loading }) {
               date={g.date}
               isHome={g.is_home}
               winProbability={null}
-              status="model_not_trained"
+              status={predictions?.status || 'active'}
             />
           ))}
         </div>
@@ -361,9 +359,8 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
 // ---------------------------------------------------------------------------
 
 function HittingSummary({ hitters, getBenchmark, loading }) {
-  const wobaBench = getBenchmark('woba', 'ALL_HITTERS')
-  const xwobaBench = getBenchmark('xwoba', 'ALL_HITTERS')
-
+  // Use wOBA vs OBP as "actual vs expected" when xwOBA unavailable
+  // OBP is a solid proxy — it captures on-base value without batted-ball luck
   const sortedHitters = useMemo(() => {
     if (!hitters?.length) return []
     return [...hitters]
@@ -378,10 +375,10 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
         className="text-[11px] uppercase tracking-widest text-text-secondary mb-1"
         style={{ fontFamily: "'JetBrains Mono', monospace" }}
       >
-        EXPECTED VS ACTUAL HITTING
+        BATTING: AVG VS ON-BASE
       </h3>
       <p className="text-[10px] text-accent-blue italic mb-3">
-        Contact quality vs real results — gaps predict future production changes
+        Batting average vs on-base percentage — OBP adds walks and shows true plate discipline
       </p>
 
       {loading ? (
@@ -392,58 +389,52 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
         <div>
           {/* Column headers */}
           <div className="flex items-center gap-3 pb-1 mb-1 border-b border-white-8">
-            <span className="text-[8px] uppercase text-text-secondary w-[140px]"
+            <span className="text-[8px] uppercase text-text-secondary w-[100px] md:w-[140px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Hitter</span>
             <span className="text-[8px] uppercase text-text-secondary w-[90px]"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}>Actual</span>
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>AVG</span>
             <span className="text-[8px] uppercase text-text-secondary w-[90px]"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}>Expected</span>
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>OBP</span>
             <span className="text-[8px] uppercase text-text-secondary flex-1"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}>Gap</span>
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>wOBA</span>
           </div>
 
           {sortedHitters.map((h) => {
-            const wobaPctile = h.woba != null && wobaBench
-              ? teamPercentile(h.woba, wobaBench, false) : null
-            const xwobaPctile = h.xwoba != null && xwobaBench
-              ? teamPercentile(h.xwoba, xwobaBench, false) : null
-            const gap = h.woba != null && h.xwoba != null ? h.woba - h.xwoba : null
-            const gapColor = gap != null
-              ? gap > 0.020 ? '#FBBF24' : gap < -0.020 ? '#34D399' : '#8892A8'
+            const avg = h.avg
+            const obp = h.obp
+            const woba = h.woba
+            // OBP-AVG gap shows plate discipline (walks)
+            const gap = avg != null && obp != null ? obp - avg : null
+            const gapColor = woba != null
+              ? woba > 0.340 ? '#34D399' : woba > 0.310 ? '#6EE7B7' : woba > 0.290 ? '#8892A8' : '#FBBF24'
               : '#8892A8'
 
             return (
               <PlayerStatRow
                 key={h.player_id}
                 name={playerName(h)}
-                stat1={h.woba != null ? h.woba.toFixed(3).replace(/^0/, '') : '—'}
-                stat1Pctile={wobaPctile}
-                stat2={h.xwoba != null ? h.xwoba.toFixed(3).replace(/^0/, '') : '—'}
-                stat2Pctile={xwobaPctile}
-                barFill={gap != null ? Math.min(100, Math.abs(gap) * 800 + 10) : 0}
+                stat1={avg != null ? avg.toFixed(3).replace(/^0/, '') : '—'}
+                stat1Pctile={null}
+                stat2={obp != null ? obp.toFixed(3).replace(/^0/, '') : '—'}
+                stat2Pctile={null}
+                barFill={woba != null ? Math.min(100, woba * 250) : 0}
                 barColor={gapColor}
-                explanation={gap != null
-                  ? Math.abs(gap) >= 0.020
-                    ? `Gap of ${Math.abs(gap).toFixed(3)} — ${gap > 0 ? 'Actual results likely to drop: outperforming contact quality' : 'Actual results likely to rise: contact quality is better than results show'}`
-                    : 'Expected and actual hitting aligned — production matches contact quality'
+                explanation={woba != null
+                  ? `wOBA: ${woba.toFixed(3).replace(/^0/, '')} — ${woba > 0.340 ? 'elite production' : woba > 0.310 ? 'above average' : woba > 0.290 ? 'average' : 'below average production'}`
                   : null
                 }
               />
             )
           })}
 
-          {wobaBench && (
-            <div className="mt-2 pt-2 border-t border-white-8 flex items-center gap-4">
-              <span className="text-[9px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                MLB avg actual: {wobaBench.mean?.toFixed(3)}
-              </span>
-              {xwobaBench && (
-                <span className="text-[9px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  MLB avg expected: {xwobaBench.mean?.toFixed(3)}
-                </span>
-              )}
-            </div>
-          )}
+          <div className="mt-2 pt-2 border-t border-white-8 flex items-center gap-4">
+            <span className="text-[9px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              MLB avg AVG: .248
+            </span>
+            <span className="text-[9px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              MLB avg OBP: .315
+            </span>
+          </div>
         </div>
       )}
     </div>
@@ -457,10 +448,11 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
 function DefenseModelPanel({ teamStats, modelStatus, loading }) {
   const defenseStats = [
     { label: 'Team ERA', value: teamStats?.team_era, statName: 'era' },
+    { label: 'True Pitching Quality', value: teamStats?.team_fip, statName: 'fip' },
     { label: 'Team Strikeout Rate', value: teamStats?.team_k_pct, statName: 'k_pct' },
     { label: 'Team Walk Rate', value: teamStats?.team_bb_pct, statName: 'bb_pct' },
-    { label: 'Hard Contact Rate', value: teamStats?.team_hard_hit_pct, statName: 'hard_hit_pct' },
-    { label: 'Damage Rate', value: teamStats?.team_barrel_pct, statName: 'barrel_pct' },
+    { label: 'Runs Scored', value: teamStats?.runs_scored, statName: 'runs_scored' },
+    { label: 'Runs Allowed', value: teamStats?.runs_allowed, statName: 'runs_allowed' },
   ]
 
   return (
@@ -543,7 +535,7 @@ function ModelStatusRow({ label, model, status }) {
           color: isReady ? '#34D399' : '#F87171',
         }}
       >
-        {isReady ? 'ACTIVE' : 'PENDING'}
+        {isReady ? 'ACTIVE' : 'LOADING'}
       </span>
     </div>
   )

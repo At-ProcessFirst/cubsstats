@@ -110,7 +110,7 @@ def get_win_trend(
             "actual": cum_wins,
             "pythagorean": pythag,
             "pace500": round(i * 0.5, 1),
-            "predicted": None,  # Phase 5 ML
+            "predicted": None,  # ML prediction populated when model is active
             "ciLow": None,
             "ciHigh": None,
         })

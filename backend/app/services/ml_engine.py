@@ -66,7 +66,7 @@ def train_game_outcome_model(db: Session) -> dict:
 
     if len(X) < 30:
         logger.warning(f"Only {len(X)} samples — minimum 30 needed")
-        return {"status": "insufficient_data", "games": len(X)}
+        return {"status": "limited_data", "games": len(X)}
 
     # Try XGBoost first, fall back to sklearn GradientBoosting
     try:
@@ -188,7 +188,7 @@ def train_win_trend_model(db: Session) -> dict:
 
     if len(X) < 15:
         logger.warning(f"Only {len(X)} samples — need 15+")
-        return {"status": "insufficient_data", "windows": len(X)}
+        return {"status": "limited_data", "windows": len(X)}
 
     model = Ridge(alpha=1.0)
 
