@@ -28,7 +28,7 @@ export default function WinTrendChart({ data = [], summary }) {
           WIN TREND
         </h3>
         <div className="h-[250px] flex items-center justify-center text-text-secondary text-sm">
-          No game data available yet
+          Season data will appear as games are played
         </div>
       </div>
     )

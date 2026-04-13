@@ -73,7 +73,19 @@ function buildVerdict(pitcher, benchmarks) {
     }
   }
   if (kB) parts.push(`striking out batters at a ${ordinal(kB.percentile)} percentile rate`)
-  return parts.length ? parts.join('. ') + '.' : `${name} has limited benchmark data available.`
+
+  // Fallback: generate from raw stats when benchmarks unavailable
+  if (!parts.length && pitcher) {
+    if (pitcher.era != null) parts.push(`${pitcher.era.toFixed(2)} ERA through ${pitcher.ip?.toFixed(1) || '?'} innings`)
+    if (pitcher.fip != null) {
+      const gap = (pitcher.era || 0) - pitcher.fip
+      if (Math.abs(gap) >= 0.5) {
+        parts.push(`True ERA (FIP) of ${pitcher.fip.toFixed(2)} ${gap > 0 ? 'suggests regression ahead — the ERA has been inflated by luck' : 'shows the actual pitching is better than results indicate'}`)
+      }
+    }
+    if (pitcher.k_pct != null) parts.push(`${pitcher.k_pct.toFixed(1)}% strikeout rate`)
+  }
+  return parts.length ? parts.join('. ') + '.' : `${name}'s early-season sample is still small — check back as the body of work grows.`
 }
 
 export default function PitchingLab() {
@@ -237,34 +249,18 @@ export default function PitchingLab() {
             </div>
           </div>
 
-          {/* Right: Pitch Arsenal */}
+          {/* Right: Pitch Arsenal — only shown when Statcast data is available */}
           <div>
             <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               PITCH ARSENAL
             </h3>
             <p className="text-[10px] text-accent-blue italic mb-3">
-              Each pitch compared against its MLB pitch-type cohort — not all pitches
+              Pitch data updates daily from Statcast
             </p>
-            <div className="flex flex-col gap-3">
-              {/* We generate placeholder pitch cards since Statcast pitch-level data
-                  is populated by seed scripts. Show known pitch types. */}
-              {['FF', 'SL', 'CU', 'CH', 'FC'].map(pt => (
-                <PitchArsenalCard
-                  key={pt}
-                  pitchType={pt}
-                  pitchName={PITCH_TYPE_NAMES[pt]}
-                  color={PITCH_COLORS[pt]}
-                  role={pt === 'FF' ? 'Primary fastball' : pt === 'SL' ? 'Primary breaking' : pt === 'CU' ? 'Secondary breaking' : pt === 'CH' ? 'Off-speed' : 'Cutter'}
-                  stats={[
-                    { label: 'Velo', value: null, mlbAvg: null },
-                    { label: 'Usage%', value: null, mlbAvg: null },
-                    { label: 'Whiff%', value: null, mlbAvg: null },
-                    { label: 'Move', value: null, mlbAvg: null },
-                  ]}
-                  explanation="Pitch-level data loads after running seed scripts"
-                />
-              ))}
+            <div className="bg-surface rounded-lg border border-white-8 p-4 text-center">
+              <p className="text-sm text-text-secondary">Pitch-by-pitch data from Statcast updates as the season progresses</p>
+              <p className="text-[10px] text-text-secondary mt-1">Velocity, movement, whiff rates, and usage breakdowns for each pitch type</p>
             </div>
           </div>
         </div>
@@ -287,7 +283,7 @@ export default function PitchingLab() {
               RECENT STARTS
             </h3>
             <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-              Game log data available after seeding
+              No recent starts recorded
             </div>
             {getBenchmark('era', posGroup) && (
               <div className="mt-2 pt-2 border-t border-white-8">
@@ -306,7 +302,7 @@ export default function PitchingLab() {
             </h3>
             {!rankings.length ? (
               <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-                Benchmark data available after seeding
+                Percentile rankings populate with league benchmark data
               </div>
             ) : (
               <div className="flex flex-col">

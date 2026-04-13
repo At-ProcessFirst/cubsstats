@@ -65,7 +65,17 @@ function buildVerdict(hitter, benchmarks) {
     }
   }
   if (barrelB) parts.push(`barrel rate at the ${ordinal(barrelB.percentile)} percentile`)
-  return parts.length ? parts.join('. ') + '.' : `${hitter.name} has limited benchmark data available.`
+  // Fallback: generate from raw stats
+  if (!parts.length && hitter) {
+    if (hitter.avg != null) parts.push(`hitting ${hitter.avg.toFixed(3)}`)
+    if (hitter.obp != null) parts.push(`${hitter.obp.toFixed(3)} on-base percentage`)
+    if (hitter.slg != null) parts.push(`${hitter.slg.toFixed(3)} slugging`)
+    if (hitter.woba != null) {
+      const quality = hitter.woba > 0.340 ? 'elite' : hitter.woba > 0.310 ? 'above average' : hitter.woba > 0.290 ? 'average' : 'below average'
+      parts.push(`${hitter.woba.toFixed(3)} wOBA (${quality} production)`)
+    }
+  }
+  return parts.length ? parts.join('. ') + '.' : `${hitter.name}'s early-season sample is still building — check back as plate appearances accumulate.`
 }
 
 export default function HittingLab() {
@@ -268,7 +278,7 @@ export default function HittingLab() {
               RECENT GAMES
             </h3>
             <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-              Game log data available after seeding
+              No recent games recorded
             </div>
           </div>
 
@@ -280,7 +290,7 @@ export default function HittingLab() {
             </h3>
             {!rankings.length ? (
               <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-                Benchmark data available after seeding
+                Percentile rankings populate with league benchmark data
               </div>
             ) : (
               <div className="flex flex-col">
@@ -293,19 +303,19 @@ export default function HittingLab() {
             )}
           </div>
 
-          {/* Batted Ball Profile */}
+          {/* Batted Ball Profile — show only stats that have data */}
           <div className="bg-surface rounded-lg border border-white-8 p-4">
             <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              BATTED BALL PROFILE
+              KEY STATS
             </h3>
             <div className="flex flex-col gap-3">
               {[
-                { label: 'Avg Exit Velo', key: 'avg_exit_velo' },
-                { label: 'Barrel%', key: 'barrel_pct' },
-                { label: 'Hard Hit%', key: 'hard_hit_pct' },
-                { label: 'BABIP', key: 'babip' },
-              ].map(({ label, key }) => {
+                { label: 'Batting Average', key: 'avg' },
+                { label: 'On-Base %', key: 'obp' },
+                { label: 'Slugging', key: 'slg' },
+                { label: 'Batting Luck', key: 'babip' },
+              ].filter(({ key }) => activeHitter?.[key] != null).map(({ label, key }) => {
                 const val = activeHitter[key]
                 const pb = getPlayerStat(key)
                 return (

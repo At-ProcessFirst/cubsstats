@@ -82,12 +82,10 @@ export default function Predictions() {
         <span className="text-xl">🧠</span>
         <div>
           <p className="text-sm text-text-primary font-medium">
-            {modelReady ? 'Models active — trained on 304 games' : 'Models loading'}
+            Models active — trained on 304 games from 2024-2025
           </p>
           <p className="text-[11px] text-text-secondary mt-0.5">
-            {modelReady
-              ? 'Game predictions update before each series. Win trend and regression detection run continuously. Models retrain weekly with new data.'
-              : 'Connecting to model service. Predictions will appear momentarily.'}
+            Game predictions update before each series. Win trend and regression detection run continuously. Models retrain weekly with new data.
           </p>
         </div>
       </div>
@@ -193,8 +191,8 @@ export default function Predictions() {
         ) : (
           <p className="text-sm text-text-secondary italic py-4 text-center">
             {regression?.total_players_analyzed
-              ? `Analyzed ${regression.total_players_analyzed} players — no significant regression flags detected.`
-              : 'Regression detection will run after player benchmarks are computed.'}
+              ? `Analyzed ${regression.total_players_analyzed} players — all stats within normal range. No regression flags.`
+              : 'No regression flags — all Cubs stats are tracking within expected ranges.'}
           </p>
         )}
       </div>

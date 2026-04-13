@@ -61,7 +61,7 @@ def _team_context(season: int, db: Session) -> str:
         TeamSeasonStats.season == season,
     ).first()
     if not stats:
-        return "No team data available yet."
+        return "The season is just getting started. Check back as the Cubs build up their body of work."
 
     lines = [
         f"Cubs record: {stats.wins}-{stats.losses} ({stats.games_played} games played)",

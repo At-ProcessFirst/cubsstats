@@ -69,7 +69,7 @@ export default function DefenseLab() {
           </div>
         ) : !sortedDefenders.length ? (
           <p className="text-sm text-text-secondary italic py-8 text-center">
-            No defensive data available — run seed scripts to populate
+            Defensive metrics (OAA, DRS, Framing) update as the season progresses
           </p>
         ) : (
           <div>

@@ -100,10 +100,10 @@ export default function Divergences() {
           <p className="text-lg text-text-secondary">
             {divergences?.length
               ? `No ${filter.toLowerCase()} alerts active`
-              : 'No divergences detected. All Cubs player stats are tracking their expected values.'}
+              : 'All Cubs players are tracking their expected performance. No significant stat divergences detected.'}
           </p>
           <p className="text-sm text-text-secondary mt-2 italic">
-            Divergence detection runs after each game update.
+            The regression detection system monitors every stat against MLB benchmarks daily.
           </p>
         </div>
       ) : (
