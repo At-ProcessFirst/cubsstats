@@ -41,7 +41,6 @@ def train_game_outcome_model(db: Session) -> dict:
 
     Returns training metadata (accuracy, feature importance, etc).
     """
-    from xgboost import XGBClassifier
     from sklearn.model_selection import cross_val_score
     from app.services.features import build_training_dataset, GAME_OUTCOME_FEATURE_NAMES
 
@@ -69,16 +68,23 @@ def train_game_outcome_model(db: Session) -> dict:
         logger.warning(f"Only {len(X)} samples — minimum 30 needed")
         return {"status": "insufficient_data", "games": len(X)}
 
-    model = XGBClassifier(
-        n_estimators=100,
-        max_depth=4,
-        learning_rate=0.1,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        use_label_encoder=False,
-        eval_metric="logloss",
-        random_state=42,
-    )
+    # Try XGBoost first, fall back to sklearn GradientBoosting
+    try:
+        from xgboost import XGBClassifier
+        model = XGBClassifier(
+            n_estimators=100, max_depth=4, learning_rate=0.1,
+            subsample=0.8, colsample_bytree=0.8,
+            use_label_encoder=False, eval_metric="logloss", random_state=42,
+        )
+        model_name = "XGBoost"
+    except (ImportError, Exception) as e:
+        logger.info(f"XGBoost unavailable ({e}), using GradientBoosting fallback")
+        from sklearn.ensemble import GradientBoostingClassifier
+        model = GradientBoostingClassifier(
+            n_estimators=100, max_depth=4, learning_rate=0.1,
+            subsample=0.8, random_state=42,
+        )
+        model_name = "GradientBoosting"
 
     # Cross-validation
     cv_scores = cross_val_score(model, X, y, cv=min(5, len(X) // 10), scoring="accuracy")

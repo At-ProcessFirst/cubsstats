@@ -161,7 +161,12 @@ def _compute_trend_slope(values: list[float]) -> float:
 # ---------------------------------------------------------------------------
 
 def build_game_features(game_pk: int, db: Session) -> Optional[dict]:
-    """Build feature vector for a specific game (for prediction or training)."""
+    """Build feature vector for a specific game.
+
+    Computes all features from game results directly (no dependency on
+    box score tables), so it works for historical seasons where we only
+    have schedule data + season stats.
+    """
     game = db.query(Game).filter(Game.game_pk == game_pk).first()
     if not game:
         return None
@@ -169,7 +174,6 @@ def build_game_features(game_pk: int, db: Session) -> Optional[dict]:
     season = game.season
     all_games = _get_cubs_games(season, db)
 
-    # Find index of this game
     game_idx = None
     for i, g in enumerate(all_games):
         if g.game_pk == game_pk:
@@ -177,28 +181,64 @@ def build_game_features(game_pk: int, db: Session) -> Optional[dict]:
             break
 
     if game_idx is None or game_idx < 10:
-        return None  # Need at least 10 prior games
+        return None
 
-    prior_games = all_games[:game_idx]
+    prior = all_games[:game_idx]
+    last10 = prior[-10:]
 
-    # Rolling 10-game team FIP — use team aggregate as proxy
+    # Rolling 10-game run differential
+    run_diff_10g = sum(_game_runs(g)[0] - _game_runs(g)[1] for g in last10)
+
+    # Rolling 10-game win%  as proxy for team quality (FIP/wRC+ may not be available)
+    wins_10g = sum(1 for g in last10 if g.cubs_won)
+    rolling_wpct = wins_10g / 10.0
+
+    # Rolling 10-game runs scored/allowed per game as proxies for wRC+ and FIP
+    rs_per_g = sum(_game_runs(g)[0] for g in last10) / 10.0
+    ra_per_g = sum(_game_runs(g)[1] for g in last10) / 10.0
+    # Map to approximate FIP (4.0 = average, lower RA → lower FIP proxy)
+    rolling_fip_proxy = max(1.5, min(7.0, ra_per_g * 0.9))
+    # Map to approximate wRC+ (100 = average ~4.5 RS/game)
+    rolling_wrc_proxy = max(50, min(180, (rs_per_g / 4.5) * 100))
+
+    # Use season-level stats if available to improve the proxy
     cubs_stats = db.query(TeamSeasonStats).filter(
-        TeamSeasonStats.team == "CHC",
-        TeamSeasonStats.season == season,
+        TeamSeasonStats.team == "CHC", TeamSeasonStats.season == season,
     ).first()
+    if cubs_stats:
+        if cubs_stats.team_fip is not None:
+            rolling_fip_proxy = cubs_stats.team_fip
+        if cubs_stats.team_wrc_plus is not None:
+            rolling_wrc_proxy = cubs_stats.team_wrc_plus
 
-    rolling_fip = cubs_stats.team_fip if cubs_stats else 4.00
-    rolling_wrc = cubs_stats.team_wrc_plus if cubs_stats else 100.0
+    # Opponent strength from their season record
+    opp = _opponent_abbr(game)
+    opp_games = db.query(Game).filter(
+        Game.season == season, Game.status == "final",
+        ((Game.home_team == opp) | (Game.away_team == opp)),
+        Game.game_date < game.game_date,
+    ).all()
+    if opp_games:
+        opp_wins = sum(1 for g in opp_games if (
+            (g.home_team == opp and (g.home_score or 0) > (g.away_score or 0)) or
+            (g.away_team == opp and (g.away_score or 0) > (g.home_score or 0))
+        ))
+        opp_wpct = opp_wins / len(opp_games)
+    else:
+        opp_wpct = 0.500
+
+    # Rest days
+    rest = (game.game_date - prior[-1].game_date).days if prior else 1.0
 
     features = {
-        "rolling_10g_fip": rolling_fip or 4.00,
-        "rolling_10g_wrc_plus": rolling_wrc or 100.0,
-        "team_oaa": _team_oaa(season, db),
-        "run_diff_10g": _rolling_run_diff(prior_games, 10),
+        "rolling_10g_fip": rolling_fip_proxy,
+        "rolling_10g_wrc_plus": rolling_wrc_proxy,
+        "team_oaa": 0.0,  # OAA not available from game data, use neutral
+        "run_diff_10g": float(run_diff_10g),
         "is_home": 1.0 if game.home_team == "CHC" else 0.0,
-        "opponent_win_pct": _opponent_win_pct(_opponent_abbr(game), season, db),
-        "rest_days": _rest_days(game, prior_games),
-        "bullpen_usage_3d": _bullpen_innings_last_3d(game.game_date, season, db),
+        "opponent_win_pct": opp_wpct,
+        "rest_days": float(max(0, rest)),
+        "bullpen_usage_3d": 0.0,  # Not available from game data, use neutral
     }
     return features
 
@@ -290,11 +330,17 @@ def build_trend_features(season: int, db: Session) -> Optional[pd.DataFrame]:
 
         pythag = _rolling_pythag(window, 30)
 
+        # Compute actual trends from per-game run data
+        ra_per_game = [_game_runs(g)[1] for g in window]  # RA as FIP proxy
+        rs_per_game = [_game_runs(g)[0] for g in window]  # RS as wRC+ proxy
+        fip_trend = _compute_trend_slope(ra_per_game)
+        wrc_trend = _compute_trend_slope(rs_per_game)
+
         features = {
             "rolling_30g_pythag_wpct": pythag or 0.500,
-            "fip_trend": _compute_trend_slope([avg_fip] * 30),  # Simplified — uses season avg
-            "wrc_plus_trend": _compute_trend_slope([avg_wrc] * 30),
-            "roster_war": 0.0,  # WAR not in our data model yet
+            "fip_trend": fip_trend,
+            "wrc_plus_trend": wrc_trend,
+            "roster_war": 0.0,
             "sos_remaining": sos_remaining(i),
             "target": float(target_wins),
             "game_index": i,

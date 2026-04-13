@@ -72,6 +72,21 @@ def main():
             logger.info(f"  Cubs player benchmarks: {count}")
             total += count
 
+        # 5. Train ML models from historical data
+        logger.info("\n--- Training ML Models ---")
+        try:
+            from app.services.ml_engine import train_all_models
+            ml_results = train_all_models(db)
+            for name, result in ml_results.items():
+                status = result.get("status", "unknown")
+                logger.info(f"  {name}: {status}")
+                if "cv_accuracy" in result:
+                    logger.info(f"    Accuracy: {result['cv_accuracy']:.1%}")
+                if "cv_mae" in result:
+                    logger.info(f"    MAE: {result['cv_mae']:.2f} wins")
+        except Exception as e:
+            logger.error(f"  ML training failed: {e}")
+
         run.status = "completed"
         run.completed_at = datetime.now(timezone.utc)
         run.records_processed = total

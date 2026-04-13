@@ -26,7 +26,7 @@ export default function Predictions() {
   const gameModelStatus = predictions?.status || 'model_not_trained'
   const trendModelStatus = winTrend?.status || 'model_not_trained'
   const regModelStatus = regression?.status || 'no_data'
-  const modelReady = gameModelStatus === 'active'
+  const modelReady = gameModelStatus === 'active' || gameModelStatus === 'trained'
 
   return (
     <div className="flex flex-col gap-4">
@@ -208,7 +208,7 @@ export default function Predictions() {
 }
 
 function ModelCard({ title, model, target, status, error, baselines = [] }) {
-  const isReady = status === 'active' || status === 'trained'
+  const isReady = ['active', 'trained'].includes(status)
   const statusLabel = error ? 'ERROR' : isReady ? 'ACTIVE' : 'PENDING'
   const statusColor = error ? '#F87171' : isReady ? '#34D399' : '#FBBF24'
 
