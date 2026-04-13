@@ -140,6 +140,25 @@ export default function App() {
           <Route path="/editorial" element={<Editorial />} />
         </Routes>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-white-8 mt-8 py-4 text-center">
+        <span
+          className="text-[11px] text-text-secondary"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          Built by{' '}
+          <a
+            href="https://at-processfirst.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent-blue hover:underline"
+          >
+            At Process
+          </a>
+          {' '}| at-processfirst.com
+        </span>
+      </footer>
     </div>
   )
 }

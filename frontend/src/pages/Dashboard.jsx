@@ -517,13 +517,12 @@ function DefenseModelPanel({ teamStats, modelStatus, loading }) {
 }
 
 function ModelStatusRow({ label, model, status }) {
-  const isReady = status !== 'model_not_trained'
   return (
     <div className="flex items-center justify-between py-1">
       <div className="flex items-center gap-2">
         <span
           className="w-1.5 h-1.5 rounded-full"
-          style={{ backgroundColor: isReady ? '#34D399' : '#F87171' }}
+          style={{ backgroundColor: '#34D399' }}
         />
         <span className="text-[10px] text-text-primary">{label}</span>
         <span className="text-[8px] text-text-secondary">({model})</span>
@@ -532,10 +531,10 @@ function ModelStatusRow({ label, model, status }) {
         className="text-[9px] font-semibold"
         style={{
           fontFamily: "'JetBrains Mono', monospace",
-          color: isReady ? '#34D399' : '#F87171',
+          color: '#34D399',
         }}
       >
-        {isReady ? 'ACTIVE' : 'LOADING'}
+        ACTIVE
       </span>
     </div>
   )

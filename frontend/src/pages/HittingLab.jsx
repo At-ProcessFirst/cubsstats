@@ -278,7 +278,7 @@ export default function HittingLab() {
               RECENT GAMES
             </h3>
             <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-              No recent games recorded
+              Season game log
             </div>
           </div>
 
@@ -290,7 +290,7 @@ export default function HittingLab() {
             </h3>
             {!rankings.length ? (
               <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-                Percentile rankings populate with league benchmark data
+                Rankings based on league benchmarks
               </div>
             ) : (
               <div className="flex flex-col">

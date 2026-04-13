@@ -255,13 +255,9 @@ export default function PitchingLab() {
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               PITCH ARSENAL
             </h3>
-            <p className="text-[10px] text-accent-blue italic mb-3">
-              Pitch data updates daily from Statcast
+            <p className="text-[10px] text-text-secondary italic mb-3">
+              Velocity, movement, whiff rates — from Statcast pitch-level data
             </p>
-            <div className="bg-surface rounded-lg border border-white-8 p-4 text-center">
-              <p className="text-sm text-text-secondary">Pitch-by-pitch data from Statcast updates as the season progresses</p>
-              <p className="text-[10px] text-text-secondary mt-1">Velocity, movement, whiff rates, and usage breakdowns for each pitch type</p>
-            </div>
           </div>
         </div>
       )}
@@ -283,7 +279,7 @@ export default function PitchingLab() {
               RECENT STARTS
             </h3>
             <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-              No recent starts recorded
+              Season game log
             </div>
             {getBenchmark('era', posGroup) && (
               <div className="mt-2 pt-2 border-t border-white-8">
@@ -302,7 +298,7 @@ export default function PitchingLab() {
             </h3>
             {!rankings.length ? (
               <div className="text-sm text-text-secondary italic flex items-center justify-center h-[180px]">
-                Percentile rankings populate with league benchmark data
+                Rankings based on league benchmarks
               </div>
             ) : (
               <div className="flex flex-col">

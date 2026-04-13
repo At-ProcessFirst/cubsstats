@@ -773,6 +773,27 @@ def compute_team_season_stats(team: str, season: int, db: Session) -> TeamSeason
     team_k_pct = _weighted_avg(pitchers, "k_pct", "ip")
     team_bb_pct = _weighted_avg(pitchers, "bb_pct", "ip")
 
+    # Fallback: compute K% and BB% from game-level stats if season stats are null
+    if team_k_pct is None or team_bb_pct is None:
+        game_stats = db.query(PitcherGameStats).filter(
+            PitcherGameStats.season == season,
+        ).all()
+        # Filter to Cubs pitchers
+        cubs_pids = set(p.player_id for p in pitchers)
+        cubs_game_stats = [g for g in game_stats if g.player_id in cubs_pids]
+        if cubs_game_stats:
+            total_k = sum(g.strikeouts or 0 for g in cubs_game_stats)
+            total_bb = sum(g.walks or 0 for g in cubs_game_stats)
+            total_ip = sum(g.ip or 0 for g in cubs_game_stats)
+            # Estimate BF from IP (roughly 3 batters per inning + hits + walks)
+            total_hits = sum(g.hits or 0 for g in cubs_game_stats)
+            est_bf = total_ip * 3 + total_hits + total_bb
+            if est_bf > 0:
+                if team_k_pct is None:
+                    team_k_pct = (total_k / est_bf) * 100
+                if team_bb_pct is None:
+                    team_bb_pct = (total_bb / est_bf) * 100
+
     # --- Hitting aggregates (PA-weighted) ---
     hitters = db.query(HitterSeasonStats).filter(
         HitterSeasonStats.season == season, HitterSeasonStats.team == team,

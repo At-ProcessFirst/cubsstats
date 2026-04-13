@@ -320,48 +320,123 @@ def _build_regression_explanation(flag: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Model metadata persistence
+# Model metadata persistence (database-backed + file fallback)
 # ---------------------------------------------------------------------------
 
-def _load_model_meta() -> dict:
-    """Load model metadata from disk."""
-    if not os.path.exists(MODEL_META_PATH):
-        return {}
+def _save_model_status_to_db(model_name: str, status: str, accuracy: float = None,
+                              accuracy_label: str = None, samples: int = 0,
+                              feature_importance: dict = None):
+    """Persist model training status to the database."""
+    from app.models.database import SessionLocal, ModelStatus
+    db = SessionLocal()
     try:
-        with open(MODEL_META_PATH, "r") as f:
-            return json.load(f)
+        existing = db.query(ModelStatus).filter(ModelStatus.model_name == model_name).first()
+        if existing:
+            existing.status = status
+            existing.accuracy = accuracy
+            existing.accuracy_label = accuracy_label
+            existing.training_samples = samples
+            existing.feature_importance = json.dumps(feature_importance) if feature_importance else None
+            existing.trained_at = datetime.now(timezone.utc)
+        else:
+            db.add(ModelStatus(
+                model_name=model_name, status=status,
+                accuracy=accuracy, accuracy_label=accuracy_label,
+                training_samples=samples,
+                feature_importance=json.dumps(feature_importance) if feature_importance else None,
+                trained_at=datetime.now(timezone.utc),
+            ))
+        db.commit()
+    except Exception as e:
+        logger.warning(f"Failed to save model status to DB: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _load_model_meta() -> dict:
+    """Load model metadata — tries DB first, falls back to JSON file."""
+    # Try database first
+    try:
+        from app.models.database import SessionLocal, ModelStatus
+        db = SessionLocal()
+        rows = db.query(ModelStatus).all()
+        db.close()
+        if rows:
+            meta = {}
+            for r in rows:
+                meta[r.model_name] = {
+                    "status": r.status,
+                    "trained_at": r.trained_at.isoformat() if r.trained_at else None,
+                    "cv_accuracy": r.accuracy if r.model_name == "game_outcome" else None,
+                    "cv_mae": r.accuracy if r.model_name == "win_trend" else None,
+                    "samples": r.training_samples,
+                    "feature_importance": json.loads(r.feature_importance) if r.feature_importance else {},
+                }
+            return meta
     except Exception:
-        return {}
+        pass
+
+    # Fallback to file
+    if os.path.exists(MODEL_META_PATH):
+        try:
+            with open(MODEL_META_PATH, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
 
 
 def _update_model_meta(updates: dict):
-    """Merge updates into model metadata file."""
+    """Save model metadata to both DB and file."""
+    # Save to file (legacy)
     _ensure_model_dir()
-    meta = _load_model_meta()
-    meta.update(updates)
-    with open(MODEL_META_PATH, "w") as f:
-        json.dump(meta, f, indent=2)
+    try:
+        meta = {}
+        if os.path.exists(MODEL_META_PATH):
+            with open(MODEL_META_PATH, "r") as f:
+                meta = json.load(f)
+        meta.update(updates)
+        with open(MODEL_META_PATH, "w") as f:
+            json.dump(meta, f, indent=2)
+    except Exception:
+        pass
+
+    # Save to DB
+    for model_name, data in updates.items():
+        _save_model_status_to_db(
+            model_name=model_name,
+            status=data.get("status", "active"),
+            accuracy=data.get("cv_accuracy") or data.get("cv_mae"),
+            accuracy_label=_make_accuracy_label(model_name, data),
+            samples=data.get("samples", 0),
+            feature_importance=data.get("feature_importance"),
+        )
+
+
+def _make_accuracy_label(model_name: str, data: dict) -> str:
+    if model_name == "game_outcome" and data.get("cv_accuracy"):
+        return f"{data['cv_accuracy']:.1%} accuracy"
+    if model_name == "win_trend" and data.get("cv_mae"):
+        return f"±{data['cv_mae']:.2f} MAE"
+    return "active"
 
 
 def get_model_status() -> dict:
-    """Get status of all models for the API.
-
-    Checks both the metadata file AND the existence of model files on disk,
-    so status is accurate even if meta and files get out of sync.
-    """
+    """Get status of all models — reads from DB (always accessible on Render)."""
     meta = _load_model_meta()
 
     game_outcome = meta.get("game_outcome", {})
     win_trend = meta.get("win_trend", {})
 
-    # If joblib files exist but meta says untrained, the meta is stale
-    go_status = game_outcome.get("status", "model_not_trained")
-    if go_status == "model_not_trained" and os.path.exists(GAME_OUTCOME_PATH):
-        go_status = "trained"
+    go_status = game_outcome.get("status", "active")
+    wt_status = win_trend.get("status", "active")
 
-    wt_status = win_trend.get("status", "model_not_trained")
-    if wt_status == "model_not_trained" and os.path.exists(WIN_TREND_PATH):
-        wt_status = "trained"
+    # Also check files as fallback
+    if go_status not in ("active", "trained") and os.path.exists(GAME_OUTCOME_PATH):
+        go_status = "active"
+    if wt_status not in ("active", "trained") and os.path.exists(WIN_TREND_PATH):
+        wt_status = "active"
 
     return {
         "game_outcome": {
@@ -376,7 +451,6 @@ def get_model_status() -> dict:
             "trained_at": win_trend.get("trained_at"),
             "cv_mae": win_trend.get("cv_mae"),
             "samples": win_trend.get("samples", 0),
-            "feature_coefficients": win_trend.get("feature_coefficients", {}),
         },
         "regression_detection": {
             "status": "active",

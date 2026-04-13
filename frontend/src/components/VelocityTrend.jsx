@@ -13,19 +13,7 @@ import {
  */
 export default function VelocityTrend({ data = [], mlbAvg, playerName }) {
   if (!data.length) {
-    return (
-      <div className="bg-surface rounded-lg border border-white-8 p-4">
-        <h3
-          className="text-[11px] uppercase tracking-widest text-text-secondary mb-2"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          VELOCITY TREND {playerName ? `— ${playerName}` : ''}
-        </h3>
-        <div className="h-[180px] flex items-center justify-center text-text-secondary text-sm">
-          No velocity data available
-        </div>
-      </div>
-    )
+    return null  // Hide entirely when no Statcast velocity data
   }
 
   return (

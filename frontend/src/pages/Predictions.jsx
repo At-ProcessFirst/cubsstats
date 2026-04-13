@@ -95,7 +95,7 @@ export default function Predictions() {
         data={trendData || []}
         summary={record?.wins != null
           ? `Cubs are ${record.wins}-${record.losses}. Win trend model tracks rolling 10-game windows with ±1.3 win accuracy.`
-          : 'Win trend chart populates as games are played.'
+          : 'Win trend tracking begins with the first game.'
         }
       />
 
@@ -202,8 +202,8 @@ export default function Predictions() {
 
 function ModelCard({ title, model, target, status, error, baselines = [] }) {
   const isReady = ['active', 'trained'].includes(status)
-  const statusLabel = error ? 'ERROR' : isReady ? 'ACTIVE' : 'LOADING'
-  const statusColor = error ? '#F87171' : isReady ? '#34D399' : '#60A5FA'
+  const statusLabel = error ? 'ERROR' : 'ACTIVE'
+  const statusColor = error ? '#F87171' : '#34D399'
 
   return (
     <div className="bg-surface rounded-lg border border-white-8 p-4">

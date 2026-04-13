@@ -440,6 +440,24 @@ class Editorial(Base):
 
 
 # ---------------------------------------------------------------------------
+# ML Model Status (persisted to DB instead of filesystem)
+# ---------------------------------------------------------------------------
+
+class ModelStatus(Base):
+    __tablename__ = "model_status"
+
+    id = Column(Integer, primary_key=True)
+    model_name = Column(String(50), unique=True, nullable=False)  # game_outcome, win_trend, regression_detection
+    status = Column(String(20), nullable=False, default="active")  # active, inactive
+    accuracy = Column(Float, nullable=True)  # CV accuracy or MAE
+    accuracy_label = Column(String(50), nullable=True)  # "51.0% accuracy" or "±1.27 MAE"
+    training_samples = Column(Integer, default=0)
+    feature_importance = Column(Text, nullable=True)  # JSON
+    trained_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+# ---------------------------------------------------------------------------
 # Create all tables
 # ---------------------------------------------------------------------------
 
