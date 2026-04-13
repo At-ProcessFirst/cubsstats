@@ -72,7 +72,18 @@ def main():
             logger.info(f"  Cubs player benchmarks: {count}")
             total += count
 
-        # 5. Train ML models from historical data
+        # 5. Run divergence detection
+        logger.info("\n--- Divergence Detection ---")
+        try:
+            from app.services.divergence_engine import detect_pitcher_divergences, detect_hitter_divergences
+            for season in SEASONS:
+                p = detect_pitcher_divergences(season, db)
+                h = detect_hitter_divergences(season, db)
+                logger.info(f"  {season}: {p} pitcher alerts, {h} hitter alerts")
+        except Exception as e:
+            logger.error(f"  Divergence detection failed: {e}")
+
+        # 6. Train ML models from historical data
         logger.info("\n--- Training ML Models ---")
         try:
             from app.services.ml_engine import train_all_models

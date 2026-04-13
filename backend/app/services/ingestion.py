@@ -717,9 +717,12 @@ def parse_boxscore_hitters(boxscore: dict, game_pk: int, game_date: date,
 
 def _weighted_avg(items, val_attr, weight_attr):
     """Compute weighted average, skipping None values. Returns None if no data."""
-    pairs = [(getattr(i, val_attr), getattr(i, weight_attr) or 0)
-             for i in items
-             if getattr(i, val_attr) is not None and getattr(i, weight_attr)]
+    pairs = []
+    for i in items:
+        val = getattr(i, val_attr, None)
+        weight = getattr(i, weight_attr, None)
+        if val is not None and weight is not None and weight > 0:
+            pairs.append((float(val), float(weight)))
     if not pairs:
         return None
     total_weight = sum(w for _, w in pairs)

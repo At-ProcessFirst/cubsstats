@@ -102,16 +102,20 @@ def get_cubs_fielding(
                     games = _safe_int(stat.get("gamesPlayed"))
                     if games == 0:
                         continue
+                    po = _safe_int(stat.get("putOuts"))
+                    a = _safe_int(stat.get("assists"))
+                    e = _safe_int(stat.get("errors"))
+                    tc = _safe_int(stat.get("chances")) or (po + a + e)
                     result.append({
                         "player_id": mlb_id,
                         "name": name,
                         "position": split.get("position", {}).get("abbreviation", pos),
                         "games": games,
                         "innings": stat.get("innings", "0"),
-                        "total_chances": _safe_int(stat.get("totalChances")),
-                        "putouts": _safe_int(stat.get("putOuts")),
-                        "assists": _safe_int(stat.get("assists")),
-                        "errors": _safe_int(stat.get("errors")),
+                        "total_chances": tc,
+                        "putouts": po,
+                        "assists": a,
+                        "errors": e,
                         "fielding_pct": stat.get("fielding", ".000"),
                         "double_plays": _safe_int(stat.get("doublePlays")),
                     })

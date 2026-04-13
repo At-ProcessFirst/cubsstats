@@ -32,7 +32,7 @@ def detect_pitcher_divergences(season: int, db: Session) -> int:
     pitchers = db.query(PitcherSeasonStats).filter(
         PitcherSeasonStats.season == season,
         PitcherSeasonStats.team == "CHC",
-        PitcherSeasonStats.ip >= 15,
+        PitcherSeasonStats.ip >= 5,  # Low threshold for early season
     ).all()
 
     for p in pitchers:
@@ -66,7 +66,7 @@ def detect_hitter_divergences(season: int, db: Session) -> int:
     hitters = db.query(HitterSeasonStats).filter(
         HitterSeasonStats.season == season,
         HitterSeasonStats.team == "CHC",
-        HitterSeasonStats.pa >= 30,
+        HitterSeasonStats.pa >= 15,  # Low threshold for early season
     ).all()
 
     for h in hitters:
