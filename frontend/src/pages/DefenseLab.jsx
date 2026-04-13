@@ -39,7 +39,7 @@ export default function DefenseLab() {
       </div>
 
       {/* Stat explainer cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {DEFENSE_STATS.map(s => (
           <div key={s.key} className="bg-surface rounded-lg border border-white-8 p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -74,7 +74,7 @@ export default function DefenseLab() {
         ) : (
           <div>
             {/* Header */}
-            <div className="grid grid-cols-[200px_1fr_1fr_1fr_1fr] gap-2 pb-2 mb-2 border-b border-white-8">
+            <div className="grid grid-cols-[140px_1fr_1fr_1fr_1fr] md:grid-cols-[200px_1fr_1fr_1fr_1fr] gap-2 pb-2 mb-2 border-b border-white-8">
               <span className="text-[8px] uppercase text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Player</span>
               <span className="text-[8px] uppercase text-text-secondary text-right" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Pos</span>
               {DEFENSE_STATS.map(s => (
@@ -87,7 +87,7 @@ export default function DefenseLab() {
               const total = (d.oaa || 0) + (d.drs || 0) + (d.framing_runs || 0)
               const totalGrade = gradeFromPercentile(Math.max(1, Math.min(99, 50 + total * 3)))
               return (
-                <div key={d.player_id} className="grid grid-cols-[200px_1fr_1fr_1fr_1fr] gap-2 py-2 border-b border-white-8 last:border-b-0 items-center">
+                <div key={d.player_id} className="grid grid-cols-[140px_1fr_1fr_1fr_1fr] md:grid-cols-[200px_1fr_1fr_1fr_1fr] gap-2 py-2 border-b border-white-8 last:border-b-0 items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-text-primary">{d.name}</span>
                     <GradeBadge grade={totalGrade.label} />
@@ -115,7 +115,7 @@ export default function DefenseLab() {
 
       {/* Individual gauges for top defenders */}
       {sortedDefenders.length > 0 && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {sortedDefenders.slice(0, 4).map(d => (
             <div key={d.player_id} className="bg-surface rounded-lg border border-white-8 p-4">
               <h4 className="text-sm font-semibold text-text-primary mb-3">{d.name}</h4>

@@ -31,7 +31,7 @@ export default function MetricCard({
   const delta = mlbAvg != null && value != null ? value - mlbAvg : null
 
   return (
-    <div className="bg-surface rounded-lg border border-white-8 p-4 flex flex-col gap-2 hover:bg-surface-hover transition-colors">
+    <div className="bg-surface rounded-lg border border-white-8 p-3 md:p-4 flex flex-col gap-1.5 md:gap-2 hover:bg-surface-hover transition-colors">
       {/* Stat label */}
       <span
         className="text-[9px] uppercase tracking-widest text-text-secondary"
@@ -50,7 +50,7 @@ export default function MetricCard({
       {/* Value + Badge */}
       <div className="flex items-center gap-2">
         <span
-          className="text-[22px] font-bold leading-none"
+          className="text-[16px] md:text-[22px] font-bold leading-none"
           style={{
             fontFamily: "'JetBrains Mono', monospace",
             color: gradeInfo.color,

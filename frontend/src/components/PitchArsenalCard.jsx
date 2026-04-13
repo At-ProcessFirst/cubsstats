@@ -46,7 +46,7 @@ export default function PitchArsenalCard({
       </div>
 
       {/* 4-column mini-stat grid */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {stats.map((s, i) => {
           const deltaVal = s.delta != null ? s.delta : (s.mlbAvg != null && s.value != null ? s.value - s.mlbAvg : null)
           const deltaColor = deltaVal != null

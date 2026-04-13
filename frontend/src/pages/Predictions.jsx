@@ -40,7 +40,7 @@ export default function Predictions() {
       </div>
 
       {/* Model status cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <ModelCard
           title="Game Outcome"
           model="XGBoost Classifier"
@@ -103,7 +103,7 @@ export default function Predictions() {
       />
 
       {/* Two-col: Upcoming Predictions | Feature Importance */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Upcoming game predictions */}
         <div className="bg-surface rounded-lg border border-white-8 p-4">
           <div className="flex items-center justify-between mb-3">
@@ -149,7 +149,7 @@ export default function Predictions() {
           <p className="text-[10px] text-accent-blue italic mb-3">
             Plain English labels show what each ML feature means in baseball terms
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {Object.entries(FEATURE_LABELS).map(([key, label]) => (
               <div key={key} className="flex items-center gap-2 py-1.5 px-3 rounded bg-surface-hover">
                 <div className="w-1.5 h-6 rounded-full bg-accent-blue opacity-30" />

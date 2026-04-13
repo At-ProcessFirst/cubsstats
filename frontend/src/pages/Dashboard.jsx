@@ -118,7 +118,7 @@ function TopMetrics({ teamStats, record, getBenchmark }) {
   }, [teamStats, record])
 
   return (
-    <div className="grid grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
       {cards.map((card) => {
         // Look up benchmark for stats that have them
         const bench = card.positionGroup
@@ -669,7 +669,7 @@ export default function Dashboard() {
       />
 
       {/* 4. Middle Row (2-col): Divergences + Predictions */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <DivergencePanel
           divergences={divergences}
           loading={divLoading}
@@ -682,7 +682,7 @@ export default function Dashboard() {
       </div>
 
       {/* 5. Bottom Row (3-col): Pitching + Hitting + Defense */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <PitchingSummary
           pitchers={cubsPitching}
           getBenchmark={getBenchmark}

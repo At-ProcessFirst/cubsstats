@@ -58,3 +58,18 @@ body {
 .border-white-8 {
   border-color: rgba(255, 255, 255, 0.08);
 }
+
+/* Mobile responsive: reduce data value font size */
+@media (max-width: 767px) {
+  .stat-value-lg {
+    font-size: 16px !important;
+  }
+}
+
+/* Horizontal scroll wrapper for tables/charts on mobile */
+.mobile-scroll {
+  @media (max-width: 767px) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

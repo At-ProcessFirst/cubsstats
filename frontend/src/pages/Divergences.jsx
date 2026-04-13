@@ -38,7 +38,7 @@ export default function Divergences() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {FILTER_OPTIONS.map(opt => {
           const isActive = filter === opt
           const colors = {
@@ -76,7 +76,7 @@ export default function Divergences() {
 
       {/* Divergence explanation box */}
       <div className="bg-surface rounded-lg border border-white-8 p-4">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <ExplainBox badge="BREAKOUT" color="#34D399"
             text="Player's underlying metrics suggest better performance ahead. Surface stats haven't caught up yet." />
           <ExplainBox badge="REGRESS" color="#F87171"

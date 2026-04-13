@@ -169,7 +169,7 @@ export default function HittingLab() {
 
       {/* Two-col: Performance Benchmarks | Contact & Plate Discipline */}
       {activeHitter && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Performance vs MLB */}
           <div className="bg-surface rounded-lg border border-white-8 p-4">
             <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-4"
@@ -260,7 +260,7 @@ export default function HittingLab() {
 
       {/* Three-col: Recent Games | Percentile Rankings | Season Splits */}
       {activeHitter && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Recent Games */}
           <div className="bg-surface rounded-lg border border-white-8 p-4">
             <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"

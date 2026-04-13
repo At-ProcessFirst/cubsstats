@@ -24,9 +24,9 @@ export default function PlayerStatRow({
   return (
     <div className="py-2 border-b border-white-8 last:border-b-0">
       {/* Main row */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3 min-w-0">
         {/* Player name */}
-        <span className="text-sm text-text-primary font-medium w-[140px] truncate">
+        <span className="text-xs md:text-sm text-text-primary font-medium w-[100px] md:w-[140px] truncate flex-shrink-0">
           {name}
         </span>
 
