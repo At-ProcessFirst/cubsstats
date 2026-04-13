@@ -3,24 +3,68 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
 
-from app.models.database import get_db, TeamSeasonStats, Game
+from app.models.database import get_db, TeamSeasonStats, Game, PitcherSeasonStats
 from app.models.schemas import TeamStatsResponse, GameResponse
+from sqlalchemy import text
 
 router = APIRouter()
 
 
-@router.get("/stats", response_model=Optional[TeamStatsResponse])
+@router.get("/stats")
 def get_team_stats(
     season: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
-    """Get Cubs team aggregate stats."""
+    """Get Cubs team aggregate stats. Computes K%/BB% on the fly if missing."""
     q = db.query(TeamSeasonStats).filter(TeamSeasonStats.team == "CHC")
     if season:
         q = q.filter(TeamSeasonStats.season == season)
     else:
         q = q.order_by(TeamSeasonStats.season.desc())
-    return q.first()
+    stats = q.first()
+
+    if not stats:
+        return None
+
+    # Build response dict from the ORM object
+    result = {
+        "team": stats.team,
+        "season": stats.season,
+        "games_played": stats.games_played or 0,
+        "wins": stats.wins or 0,
+        "losses": stats.losses or 0,
+        "runs_scored": stats.runs_scored or 0,
+        "runs_allowed": stats.runs_allowed or 0,
+        "team_era": stats.team_era,
+        "team_fip": stats.team_fip,
+        "team_wrc_plus": stats.team_wrc_plus,
+        "team_woba": stats.team_woba,
+        "team_k_pct": stats.team_k_pct,
+        "team_bb_pct": stats.team_bb_pct,
+        "pythag_wins": stats.pythag_wins,
+        "pythag_losses": stats.pythag_losses,
+        "run_diff": stats.run_diff,
+    }
+
+    # If K% or BB% are null, compute directly from pitcher_season_stats
+    target_season = season or stats.season
+    if result["team_k_pct"] is None or result["team_bb_pct"] is None:
+        row = db.execute(text("""
+            SELECT
+                ROUND(CAST(SUM(k_pct * ip) AS FLOAT) / NULLIF(SUM(ip), 0), 1) as team_k_pct,
+                ROUND(CAST(SUM(bb_pct * ip) AS FLOAT) / NULLIF(SUM(ip), 0), 1) as team_bb_pct
+            FROM pitcher_season_stats
+            WHERE season = :season AND team = 'CHC' AND ip > 0
+                AND k_pct IS NOT NULL AND bb_pct IS NOT NULL
+        """), {"season": target_season}).fetchone()
+
+        if row:
+            if result["team_k_pct"] is None and row.team_k_pct is not None:
+                result["team_k_pct"] = float(row.team_k_pct)
+            if result["team_bb_pct"] is None and row.team_bb_pct is not None:
+                result["team_bb_pct"] = float(row.team_bb_pct)
+
+    return result
 
 
 @router.get("/games", response_model=list[GameResponse])

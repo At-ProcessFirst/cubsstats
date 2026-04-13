@@ -175,7 +175,10 @@ class TeamStatsResponse(BaseModel):
     team_fip: Optional[float] = None
     team_wrc_plus: Optional[float] = None
     team_woba: Optional[float] = None
+    team_k_pct: Optional[float] = None
+    team_bb_pct: Optional[float] = None
     pythag_wins: Optional[float] = None
+    pythag_losses: Optional[float] = None
     run_diff: Optional[int] = None
 
     class Config:
