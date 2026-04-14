@@ -228,21 +228,9 @@ def build_game_features(game_pk: int, db: Session) -> Optional[dict]:
         if cubs_stats.team_wrc_plus is not None:
             rolling_wrc_proxy = cubs_stats.team_wrc_plus
 
-    # Opponent strength from their season record
+    # Opponent strength from team_strength table (Pythagorean win%)
     opp = _opponent_abbr(game)
-    opp_games = db.query(Game).filter(
-        Game.season == season, Game.status == "final",
-        ((Game.home_team == opp) | (Game.away_team == opp)),
-        Game.game_date < game.game_date,
-    ).all()
-    if opp_games:
-        opp_wins = sum(1 for g in opp_games if (
-            (g.home_team == opp and (g.home_score or 0) > (g.away_score or 0)) or
-            (g.away_team == opp and (g.away_score or 0) > (g.home_score or 0))
-        ))
-        opp_wpct = opp_wins / len(opp_games)
-    else:
-        opp_wpct = 0.500
+    opp_wpct = _opponent_win_pct(opp, season, db)
 
     # Rest days
     rest = (game.game_date - prior[-1].game_date).days if prior else 1.0
