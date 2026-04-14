@@ -156,46 +156,51 @@ def get_upcoming_predictions(
 
     results = []
     for game in upcoming:
-        opp = game.away_team if game.home_team == "CHC" else game.home_team
-        is_home = game.home_team == "CHC"
+        try:
+            opp = game.away_team if game.home_team == "CHC" else game.home_team
+            is_home = game.home_team == "CHC"
 
-        # Build features from available data
-        features = build_game_features(game.game_pk, db)
-        if features is None:
-            # Compute rolling 10-game run diff from actual game results
-            recent = all_games[-10:] if len(all_games) >= 10 else all_games
-            rd_10 = 0
-            for g in recent:
-                rs = g.home_score if g.home_team == "CHC" else g.away_score
-                ra = g.away_score if g.home_team == "CHC" else g.home_score
-                rd_10 += (rs or 0) - (ra or 0)
+            # Build features
+            features = build_game_features(game.game_pk, db)
+            if features is None:
+                recent = all_games[-10:] if len(all_games) >= 10 else all_games
+                rd_10 = sum(
+                    ((g.home_score if g.home_team == "CHC" else g.away_score) or 0) -
+                    ((g.away_score if g.home_team == "CHC" else g.home_score) or 0)
+                    for g in recent
+                )
+                rest = max(0, (game.game_date - all_games[-1].game_date).days) if all_games else 1.0
 
-            # Rest days
-            rest = 1.0
-            if all_games:
-                rest = max(0, (game.game_date - all_games[-1].game_date).days)
+                features = {
+                    "rolling_10g_fip": (cubs_stats.team_fip or 4.0) if cubs_stats else 4.0,
+                    "rolling_10g_wrc_plus": (cubs_stats.team_wrc_plus or 100.0) if cubs_stats else 100.0,
+                    "team_oaa": 0.0,
+                    "run_diff_10g": float(rd_10),
+                    "is_home": 1.0 if is_home else 0.0,
+                    "opponent_win_pct": _opponent_win_pct(opp, season, db),
+                    "rest_days": float(rest),
+                    "bullpen_usage_3d": 0.0,
+                }
 
-            features = {
-                "rolling_10g_fip": (cubs_stats.team_fip or 4.0) if cubs_stats else 4.0,
-                "rolling_10g_wrc_plus": (cubs_stats.team_wrc_plus or 100.0) if cubs_stats else 100.0,
-                "team_oaa": 0.0,
-                "run_diff_10g": float(rd_10),
-                "is_home": 1.0 if is_home else 0.0,
-                "opponent_win_pct": _opponent_win_pct(opp, season, db),
-                "rest_days": float(rest),
-                "bullpen_usage_3d": 0.0,
-            }
+            prediction = predict_game_outcome(features)
+            win_prob = prediction.get("win_probability")
 
-        prediction = predict_game_outcome(features)
-        win_prob = prediction.get("win_probability")
-
-        results.append({
-            "game_pk": game.game_pk,
-            "date": game.game_date.isoformat(),
-            "opponent": opp,
-            "is_home": is_home,
-            "win_probability": win_prob,
-        })
+            results.append({
+                "game_pk": game.game_pk,
+                "date": game.game_date.isoformat(),
+                "opponent": opp,
+                "is_home": is_home,
+                "win_probability": win_prob,
+            })
+        except Exception as e:
+            # Don't let one game failure kill the whole list
+            results.append({
+                "game_pk": game.game_pk,
+                "date": game.game_date.isoformat(),
+                "opponent": game.away_team if game.home_team == "CHC" else game.home_team,
+                "is_home": game.home_team == "CHC",
+                "win_probability": None,
+            })
 
     return {"games": results}
 

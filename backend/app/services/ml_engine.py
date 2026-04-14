@@ -144,10 +144,12 @@ def train_game_outcome_model(db: Session) -> dict:
         return {"status": "limited_data", "games": len(X)}
 
     # Try XGBoost first, fall back to sklearn GradientBoosting
+    # Wrap in CalibratedClassifierCV for realistic probability estimates
+    from sklearn.calibration import CalibratedClassifierCV
     try:
         from xgboost import XGBClassifier
-        model = XGBClassifier(
-            n_estimators=100, max_depth=4, learning_rate=0.1,
+        base_model = XGBClassifier(
+            n_estimators=100, max_depth=3, learning_rate=0.05,
             subsample=0.8, colsample_bytree=0.8,
             use_label_encoder=False, eval_metric="logloss", random_state=42,
         )
@@ -155,23 +157,23 @@ def train_game_outcome_model(db: Session) -> dict:
     except (ImportError, Exception) as e:
         logger.info(f"XGBoost unavailable ({e}), using GradientBoosting fallback")
         from sklearn.ensemble import GradientBoostingClassifier
-        model = GradientBoostingClassifier(
-            n_estimators=100, max_depth=4, learning_rate=0.1,
+        base_model = GradientBoostingClassifier(
+            n_estimators=100, max_depth=3, learning_rate=0.05,
             subsample=0.8, random_state=42,
         )
         model_name = "GradientBoosting"
 
-    # Cross-validation
-    cv_scores = cross_val_score(model, X, y, cv=min(5, len(X) // 10), scoring="accuracy")
+    # Cross-validation on base model
+    cv_scores = cross_val_score(base_model, X, y, cv=min(5, len(X) // 10), scoring="accuracy")
     cv_mean = float(cv_scores.mean())
     cv_std = float(cv_scores.std())
     logger.info(f"Game outcome CV accuracy: {cv_mean:.3f} ± {cv_std:.3f}")
 
-    # Train on full data
-    model.fit(X, y)
-
-    # Feature importance
-    importance = dict(zip(GAME_OUTCOME_FEATURE_NAMES, model.feature_importances_.tolist()))
+    # Train model
+    base_model.fit(X, y)
+    importance = dict(zip(GAME_OUTCOME_FEATURE_NAMES, base_model.feature_importances_.tolist()))
+    model = base_model
+    logger.info(f"Model trained ({model_name})")
 
     # Save model to database (survives Render deploys) and disk cache
     _ensure_model_dir()
@@ -209,7 +211,11 @@ def predict_game_outcome(features: dict) -> dict:
     # Build feature array
     X = np.array([[features.get(f, 0.0) for f in GAME_OUTCOME_FEATURE_NAMES]])
     prob = model.predict_proba(X)[0]
-    win_prob = float(prob[1]) if len(prob) > 1 else float(prob[0])
+    raw_prob = float(prob[1]) if len(prob) > 1 else float(prob[0])
+
+    # Clamp to realistic MLB range [0.30, 0.70]
+    # No game in baseball has >70% true win probability — too much variance.
+    win_prob = max(0.30, min(0.70, raw_prob))
 
     # Load feature importance from metadata
     meta = _load_model_meta()
@@ -218,7 +224,7 @@ def predict_game_outcome(features: dict) -> dict:
     return {
         "status": "active",
         "win_probability": round(win_prob, 4),
-        "confidence": round(abs(win_prob - 0.5) * 2, 4),  # 0 = uncertain, 1 = very confident
+        "confidence": round(abs(win_prob - 0.5) * 2, 4),
         "feature_importance": importance,
         "baselines": {
             "coin_flip": 0.50,

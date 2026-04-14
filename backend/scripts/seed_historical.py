@@ -227,17 +227,23 @@ def seed_games(db, season: int):
     total_api = 0
     total_new = 0
 
+    # For the current season, pull 2 months ahead to get scheduled (future) games
+    if season == today.year:
+        end_limit = date(season, min(12, today.month + 2), 28)
+    else:
+        end_limit = today
+
     for month in range(3, 12):  # March through November
         start = date(season, month, 1)
-        if start > today:
+        if start > end_limit:
             break
         # Last day of month
         if month == 12:
             end = date(season, 12, 31)
         else:
             end = date(season, month + 1, 1) - timedelta(days=1)
-        if end > today:
-            end = today
+        if end > end_limit:
+            end = end_limit
 
         try:
             games_data = fetch_schedule(start, end, team_id=settings.cubs_team_id)
