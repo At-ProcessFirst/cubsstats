@@ -130,6 +130,76 @@ def get_regression_flags(
     return detect_regression_flags(season, db)
 
 
+@router.get("/upcoming-games")
+def get_upcoming_predictions(
+    limit: int = Query(10, ge=1, le=30),
+    db: Session = Depends(get_db),
+):
+    """Predict outcomes for ALL upcoming scheduled Cubs games."""
+    season = date.today().year
+
+    upcoming = db.query(Game).filter(
+        Game.game_date >= date.today(),
+        ((Game.home_team == "CHC") | (Game.away_team == "CHC")),
+        Game.status == "scheduled",
+    ).order_by(Game.game_date.asc()).limit(limit).all()
+
+    if not upcoming:
+        return {"games": []}
+
+    cubs_stats = db.query(TeamSeasonStats).filter(
+        TeamSeasonStats.team == "CHC",
+        TeamSeasonStats.season == season,
+    ).first()
+
+    all_games = _get_cubs_games(season, db)
+
+    results = []
+    for game in upcoming:
+        opp = game.away_team if game.home_team == "CHC" else game.home_team
+        is_home = game.home_team == "CHC"
+
+        # Build features from available data
+        features = build_game_features(game.game_pk, db)
+        if features is None:
+            # Compute rolling 10-game run diff from actual game results
+            recent = all_games[-10:] if len(all_games) >= 10 else all_games
+            rd_10 = 0
+            for g in recent:
+                rs = g.home_score if g.home_team == "CHC" else g.away_score
+                ra = g.away_score if g.home_team == "CHC" else g.home_score
+                rd_10 += (rs or 0) - (ra or 0)
+
+            # Rest days
+            rest = 1.0
+            if all_games:
+                rest = max(0, (game.game_date - all_games[-1].game_date).days)
+
+            features = {
+                "rolling_10g_fip": (cubs_stats.team_fip or 4.0) if cubs_stats else 4.0,
+                "rolling_10g_wrc_plus": (cubs_stats.team_wrc_plus or 100.0) if cubs_stats else 100.0,
+                "team_oaa": 0.0,
+                "run_diff_10g": float(rd_10),
+                "is_home": 1.0 if is_home else 0.0,
+                "opponent_win_pct": _opponent_win_pct(opp, season, db),
+                "rest_days": float(rest),
+                "bullpen_usage_3d": 0.0,
+            }
+
+        prediction = predict_game_outcome(features)
+        win_prob = prediction.get("win_probability")
+
+        results.append({
+            "game_pk": game.game_pk,
+            "date": game.game_date.isoformat(),
+            "opponent": opp,
+            "is_home": is_home,
+            "win_probability": win_prob,
+        })
+
+    return {"games": results}
+
+
 @router.get("/model-status")
 def model_status():
     """Get training status and metadata for all ML models."""

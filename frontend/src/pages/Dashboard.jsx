@@ -196,7 +196,9 @@ function DivergencePanel({ divergences, loading }) {
 // Section: Game Predictions Panel
 // ---------------------------------------------------------------------------
 
-function PredictionsPanel({ upcoming, predictions, loading }) {
+function PredictionsPanel({ upcomingPredictions, loading }) {
+  const games = upcomingPredictions?.games || []
+
   return (
     <div className="bg-surface rounded-lg border border-white-8 p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
@@ -215,25 +217,26 @@ function PredictionsPanel({ upcoming, predictions, loading }) {
       <div className="flex items-center gap-4 mb-3 pb-2 border-b border-white-8">
         <BaselinePill label="Coin flip" value="50%" />
         <BaselinePill label="Home adv" value="54%" />
-        <BaselinePill label="Model" value={predictions?.win_probability != null ? `${(predictions.win_probability * 100).toFixed(1)}%` : 'Active'} accent />
+        <BaselinePill label="Model" value={games.length && games[0].win_probability != null
+          ? `${(games[0].win_probability * 100).toFixed(0)}%` : 'Active'} accent />
       </div>
 
       {loading ? (
         <Shimmer lines={4} />
-      ) : !upcoming?.length ? (
+      ) : !games.length ? (
         <p className="text-sm text-text-secondary italic flex-1 flex items-center">
           No upcoming games scheduled.
         </p>
       ) : (
         <div className="flex flex-col">
-          {upcoming.map((g) => (
+          {games.map((g) => (
             <PredictionRow
               key={g.game_pk}
               opponent={g.opponent}
               date={g.date}
               isHome={g.is_home}
-              winProbability={null}
-              status={predictions?.status || 'active'}
+              winProbability={g.win_probability}
+              status="active"
             />
           ))}
         </div>
@@ -603,8 +606,7 @@ export default function Dashboard() {
   const { data: record, loading: recordLoading } = useApi('/team/record')
   const { data: winTrend, loading: trendLoading } = useApi('/team/win-trend')
   const { data: divergences, loading: divLoading } = useApi('/divergences/enriched')
-  const { data: upcoming, loading: upcomingLoading } = useApi('/team/upcoming')
-  const { data: predictions, loading: predLoading } = useApi('/predictions/game-outcome')
+  const { data: upcomingPredictions, loading: predLoading } = useApi('/predictions/upcoming-games')
   const { data: cubsPitching, loading: pitchLoading } = useApi('/pitching/cubs/enriched')
   const { data: cubsHitting, loading: hitLoading } = useApi('/hitting/cubs/enriched')
   const { getBenchmark, loading: benchLoading } = useBenchmarks()
@@ -667,9 +669,8 @@ export default function Dashboard() {
           loading={divLoading}
         />
         <PredictionsPanel
-          upcoming={upcoming}
-          predictions={predictions}
-          loading={upcomingLoading || predLoading}
+          upcomingPredictions={upcomingPredictions}
+          loading={predLoading}
         />
       </div>
 

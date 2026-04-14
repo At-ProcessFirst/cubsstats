@@ -19,7 +19,7 @@ export default function Predictions() {
   const { data: predictions, error: predError } = useApi('/predictions/game-outcome')
   const { data: winTrend, error: trendError } = useApi('/predictions/win-trend')
   const { data: regression, error: regError } = useApi('/predictions/regression-flags')
-  const { data: upcoming, loading: upLoading } = useApi('/team/upcoming?limit=10')
+  const { data: upcomingData, loading: upLoading } = useApi('/predictions/upcoming-games?limit=10')
   const { data: trendData } = useApi('/team/win-trend')
   const { data: record } = useApi('/team/record')
   const { data: featureData } = useApi('/predictions/feature-importance')
@@ -125,13 +125,13 @@ export default function Predictions() {
                 <div key={i} className="h-8 rounded bg-surface-hover animate-pulse" />
               ))}
             </div>
-          ) : !upcoming?.length ? (
+          ) : !(upcomingData?.games?.length) ? (
             <p className="text-sm text-text-secondary italic py-4 text-center">No upcoming games scheduled</p>
           ) : (
-            upcoming.map(g => (
+            upcomingData.games.map(g => (
               <PredictionRow key={g.game_pk}
                 opponent={g.opponent} date={g.date} isHome={g.is_home}
-                winProbability={null} status={predictions?.status || 'active'} />
+                winProbability={g.win_probability} status="active" />
             ))
           )}
         </div>
