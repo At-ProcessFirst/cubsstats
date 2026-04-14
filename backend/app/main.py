@@ -13,9 +13,20 @@ app = FastAPI(
     version="1.0.0",
 )
 
+_origins = settings.cors_origins.split(",")
+# Always allow the Render domains and localhost for dev
+_origins.extend([
+    "https://cubsstats-web.onrender.com",
+    "https://cubsstats.live",
+    "https://www.cubsstats.live",
+    "http://localhost:5173",
+])
+# Deduplicate and strip whitespace
+_origins = list(set(o.strip() for o in _origins if o.strip()))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins.split(","),
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

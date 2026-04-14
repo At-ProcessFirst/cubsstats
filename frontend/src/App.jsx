@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, Component } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import PitchingLab from './pages/PitchingLab'
@@ -57,6 +57,31 @@ function CloseIcon() {
       <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   )
+}
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-surface rounded-lg border border-white-8 p-8 text-center m-4">
+          <p className="text-lg text-text-primary mb-2">Something went wrong</p>
+          <p className="text-sm text-text-secondary">{this.state.error?.message}</p>
+          <button onClick={() => this.setState({ hasError: false })}
+            className="mt-4 px-4 py-2 bg-cubs-blue text-white rounded text-sm">
+            Try again
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 export default function App() {
@@ -130,15 +155,17 @@ export default function App() {
 
       {/* Page content */}
       <main className="max-w-[1440px] mx-auto px-3 md:px-4 py-3 md:py-4">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/pitching" element={<PitchingLab />} />
-          <Route path="/hitting" element={<HittingLab />} />
-          <Route path="/defense" element={<DefenseLab />} />
-          <Route path="/predictions" element={<Predictions />} />
-          <Route path="/divergences" element={<Divergences />} />
-          <Route path="/editorial" element={<Editorial />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/pitching" element={<PitchingLab />} />
+            <Route path="/hitting" element={<HittingLab />} />
+            <Route path="/defense" element={<DefenseLab />} />
+            <Route path="/predictions" element={<Predictions />} />
+            <Route path="/divergences" element={<Divergences />} />
+            <Route path="/editorial" element={<Editorial />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}

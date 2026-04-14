@@ -147,7 +147,7 @@ export default function Predictions() {
           </p>
           <div className="flex flex-col gap-1.5">
             {(featureData?.game_outcome?.features || Object.entries(FEATURE_LABELS).map(([name, label]) => ({ name, label, importance: 0 })))
-              .filter(f => f.importance > 0)  // Only show features with actual weights
+              .filter(f => f.importance != null && f.importance > 0)
               .sort((a, b) => (b.importance || 0) - (a.importance || 0))
               .map(f => {
                 const pct = f.importance * 100
@@ -188,9 +188,9 @@ export default function Predictions() {
                 <span className="text-[11px] font-bold"
                   style={{
                     fontFamily: "'JetBrains Mono', monospace",
-                    color: f.regression_probability > 0.6 ? '#F87171' : f.regression_probability > 0.3 ? '#FBBF24' : '#8892A8',
+                    color: (f.regression_probability || 0) > 0.6 ? '#F87171' : (f.regression_probability || 0) > 0.3 ? '#FBBF24' : '#8892A8',
                   }}>
-                  {(f.regression_probability * 100).toFixed(0)}% prob
+                  {f.regression_probability != null ? `${(f.regression_probability * 100).toFixed(0)}% prob` : '—'}
                 </span>
               </div>
             ))}
