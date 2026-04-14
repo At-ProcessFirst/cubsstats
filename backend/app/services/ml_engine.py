@@ -149,7 +149,7 @@ def train_game_outcome_model(db: Session) -> dict:
     try:
         from xgboost import XGBClassifier
         base_model = XGBClassifier(
-            n_estimators=100, max_depth=3, learning_rate=0.05,
+            n_estimators=150, max_depth=4, learning_rate=0.1,
             subsample=0.8, colsample_bytree=0.8,
             use_label_encoder=False, eval_metric="logloss", random_state=42,
         )
@@ -158,7 +158,7 @@ def train_game_outcome_model(db: Session) -> dict:
         logger.info(f"XGBoost unavailable ({e}), using GradientBoosting fallback")
         from sklearn.ensemble import GradientBoostingClassifier
         base_model = GradientBoostingClassifier(
-            n_estimators=100, max_depth=3, learning_rate=0.05,
+            n_estimators=150, max_depth=4, learning_rate=0.1,
             subsample=0.8, random_state=42,
         )
         model_name = "GradientBoosting"
@@ -213,9 +213,19 @@ def predict_game_outcome(features: dict) -> dict:
     prob = model.predict_proba(X)[0]
     raw_prob = float(prob[1]) if len(prob) > 1 else float(prob[0])
 
-    # Clamp to realistic MLB range [0.30, 0.70]
-    # No game in baseball has >70% true win probability — too much variance.
-    win_prob = max(0.30, min(0.70, raw_prob))
+    # Temperature scaling in logit space to produce realistic MLB probabilities.
+    # The model is trained on 304 games and tends to be overconfident.
+    # T > 1 compresses predictions toward 0.5. Tuned so:
+    #   home vs .272 team → ~62%, away vs .608 team → ~40%
+    PREDICTION_TEMPERATURE = 1.8
+    if 0 < raw_prob < 1:
+        logit = np.log(raw_prob / (1 - raw_prob))
+        scaled_logit = logit / PREDICTION_TEMPERATURE
+        win_prob = float(1 / (1 + np.exp(-scaled_logit)))
+    else:
+        win_prob = raw_prob
+    # Safety guard — no MLB game exceeds these bounds
+    win_prob = max(0.30, min(0.70, win_prob))
 
     # Load feature importance from metadata
     meta = _load_model_meta()
