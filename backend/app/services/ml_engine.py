@@ -1,17 +1,16 @@
 """
 ML engine — model training, evaluation, persistence, and prediction.
 
-Three models:
-  1. Game Outcome: XGBoost classifier (win/loss per game)
-  2. Win Trend: Ridge regression (next-10-game win total ± CI)
-  3. Regression Detection: z-score anomaly detection (from features.py)
-
-Models are persisted to disk via joblib and loaded at prediction time.
+Models are stored in the DATABASE (trained_models table) so they survive
+Render deploys (ephemeral filesystem). Local file cache avoids
+deserializing on every request.
 """
 
 import logging
 import os
+import io
 import json
+import base64
 from datetime import date, datetime, timezone
 from typing import Optional
 
@@ -27,9 +26,85 @@ GAME_OUTCOME_PATH = os.path.join(MODEL_DIR, "game_outcome.joblib")
 WIN_TREND_PATH = os.path.join(MODEL_DIR, "win_trend.joblib")
 MODEL_META_PATH = os.path.join(MODEL_DIR, "model_meta.json")
 
+# In-memory cache so we don't deserialize on every request
+_model_cache = {}
+
 
 def _ensure_model_dir():
     os.makedirs(MODEL_DIR, exist_ok=True)
+
+
+def _save_model_to_db(model_name: str, model_obj, metadata: dict = None):
+    """Serialize model and store in database (survives Render deploys)."""
+    from app.models.database import SessionLocal, TrainedModel
+    buf = io.BytesIO()
+    joblib.dump(model_obj, buf)
+    encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+
+    db = SessionLocal()
+    try:
+        existing = db.query(TrainedModel).filter(TrainedModel.model_name == model_name).first()
+        if existing:
+            existing.model_data = encoded
+            existing.metadata_json = json.dumps(metadata) if metadata else None
+            existing.trained_at = datetime.now(timezone.utc)
+        else:
+            db.add(TrainedModel(
+                model_name=model_name,
+                model_data=encoded,
+                metadata_json=json.dumps(metadata) if metadata else None,
+            ))
+        db.commit()
+        logger.info(f"Model '{model_name}' saved to database ({len(encoded)} chars)")
+    except Exception as e:
+        logger.error(f"Failed to save model to DB: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+    # Also cache in memory
+    _model_cache[model_name] = model_obj
+
+
+def _load_model_from_db(model_name: str):
+    """Load model from database, with in-memory and disk cache."""
+    # 1. Check in-memory cache
+    if model_name in _model_cache:
+        return _model_cache[model_name]
+
+    # 2. Check local file cache
+    file_path = GAME_OUTCOME_PATH if model_name == "game_outcome" else WIN_TREND_PATH
+    if os.path.exists(file_path):
+        try:
+            obj = joblib.load(file_path)
+            _model_cache[model_name] = obj
+            return obj
+        except Exception:
+            pass
+
+    # 3. Load from database
+    from app.models.database import SessionLocal, TrainedModel
+    db = SessionLocal()
+    try:
+        row = db.query(TrainedModel).filter(TrainedModel.model_name == model_name).first()
+        if row and row.model_data:
+            decoded = base64.b64decode(row.model_data)
+            obj = joblib.load(io.BytesIO(decoded))
+            _model_cache[model_name] = obj
+            # Write to disk cache for next time
+            _ensure_model_dir()
+            try:
+                joblib.dump(obj, file_path)
+            except Exception:
+                pass
+            logger.info(f"Model '{model_name}' loaded from database")
+            return obj
+    except Exception as e:
+        logger.error(f"Failed to load model '{model_name}' from DB: {e}")
+    finally:
+        db.close()
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -98,8 +173,14 @@ def train_game_outcome_model(db: Session) -> dict:
     # Feature importance
     importance = dict(zip(GAME_OUTCOME_FEATURE_NAMES, model.feature_importances_.tolist()))
 
-    # Save model
+    # Save model to database (survives Render deploys) and disk cache
+    _ensure_model_dir()
     joblib.dump(model, GAME_OUTCOME_PATH)
+    _save_model_to_db("game_outcome", model, {
+        "cv_accuracy": round(cv_mean, 4),
+        "samples": len(X),
+        "feature_importance": {k: round(v, 4) for k, v in importance.items()},
+    })
 
     meta = {
         "game_outcome": {
@@ -113,25 +194,17 @@ def train_game_outcome_model(db: Session) -> dict:
     }
     _update_model_meta(meta)
 
-    logger.info(f"Game outcome model saved to {GAME_OUTCOME_PATH}")
+    logger.info(f"Game outcome model saved to database + disk")
     return meta["game_outcome"]
 
 
 def predict_game_outcome(features: dict) -> dict:
-    """Predict game outcome using trained XGBoost model.
-
-    Returns { status, win_probability, confidence, feature_importance }.
-    """
+    """Predict game outcome. Loads model from DB → disk cache → memory cache."""
     from app.services.features import GAME_OUTCOME_FEATURE_NAMES
 
-    if not os.path.exists(GAME_OUTCOME_PATH):
+    model = _load_model_from_db("game_outcome")
+    if model is None:
         return {"status": "model_not_trained", "win_probability": None}
-
-    try:
-        model = joblib.load(GAME_OUTCOME_PATH)
-    except Exception as e:
-        logger.error(f"Failed to load game outcome model: {e}")
-        return {"status": "model_error", "win_probability": None}
 
     # Build feature array
     X = np.array([[features.get(f, 0.0) for f in GAME_OUTCOME_FEATURE_NAMES]])
@@ -206,9 +279,15 @@ def train_win_trend_model(db: Session) -> dict:
     # Feature coefficients as importance
     coefs = dict(zip(WIN_TREND_FEATURE_NAMES, model.coef_.tolist()))
 
-    # Save
+    # Save to database (survives deploys) and disk cache
     save_data = {"model": model, "residual_std": residual_std}
+    _ensure_model_dir()
     joblib.dump(save_data, WIN_TREND_PATH)
+    _save_model_to_db("win_trend", save_data, {
+        "cv_mae": round(cv_mae, 3),
+        "residual_std": round(residual_std, 3),
+        "samples": len(X),
+    })
 
     meta = {
         "win_trend": {
@@ -222,7 +301,7 @@ def train_win_trend_model(db: Session) -> dict:
     }
     _update_model_meta(meta)
 
-    logger.info(f"Win trend model saved to {WIN_TREND_PATH}")
+    logger.info(f"Win trend model saved to database + disk")
     return meta["win_trend"]
 
 
@@ -233,15 +312,15 @@ def predict_win_trend(features: dict) -> dict:
     """
     from app.services.features import WIN_TREND_FEATURE_NAMES
 
-    if not os.path.exists(WIN_TREND_PATH):
+    save_data = _load_model_from_db("win_trend")
+    if save_data is None:
         return {"status": "model_not_trained", "predicted_wins": None, "ci_lower": None, "ci_upper": None}
 
     try:
-        save_data = joblib.load(WIN_TREND_PATH)
         model = save_data["model"]
         residual_std = save_data["residual_std"]
-    except Exception as e:
-        logger.error(f"Failed to load win trend model: {e}")
+    except (KeyError, TypeError) as e:
+        logger.error(f"Win trend model format error: {e}")
         return {"status": "model_error", "predicted_wins": None, "ci_lower": None, "ci_upper": None}
 
     X = np.array([[features.get(f, 0.0) for f in WIN_TREND_FEATURE_NAMES]])
@@ -423,16 +502,29 @@ def _make_accuracy_label(model_name: str, data: dict) -> str:
 
 
 def get_model_status() -> dict:
-    """Get status of all models — reads from DB (always accessible on Render)."""
+    """Get status of all models. Checks DB trained_models table as final authority."""
     meta = _load_model_meta()
 
     game_outcome = meta.get("game_outcome", {})
     win_trend = meta.get("win_trend", {})
 
-    go_status = game_outcome.get("status", "active")
-    wt_status = win_trend.get("status", "active")
+    go_status = game_outcome.get("status", "model_not_trained")
+    wt_status = win_trend.get("status", "model_not_trained")
 
-    # Also check files as fallback
+    # Check trained_models table — if model binary exists in DB, it's trained
+    try:
+        from app.models.database import SessionLocal, TrainedModel
+        db = SessionLocal()
+        for row in db.query(TrainedModel).all():
+            if row.model_name == "game_outcome" and row.model_data:
+                go_status = "active"
+            if row.model_name == "win_trend" and row.model_data:
+                wt_status = "active"
+        db.close()
+    except Exception:
+        pass
+
+    # File fallback
     if go_status not in ("active", "trained") and os.path.exists(GAME_OUTCOME_PATH):
         go_status = "active"
     if wt_status not in ("active", "trained") and os.path.exists(WIN_TREND_PATH):

@@ -447,14 +447,27 @@ class ModelStatus(Base):
     __tablename__ = "model_status"
 
     id = Column(Integer, primary_key=True)
-    model_name = Column(String(50), unique=True, nullable=False)  # game_outcome, win_trend, regression_detection
-    status = Column(String(20), nullable=False, default="active")  # active, inactive
-    accuracy = Column(Float, nullable=True)  # CV accuracy or MAE
-    accuracy_label = Column(String(50), nullable=True)  # "51.0% accuracy" or "±1.27 MAE"
+    model_name = Column(String(50), unique=True, nullable=False)
+    status = Column(String(20), nullable=False, default="active")
+    accuracy = Column(Float, nullable=True)
+    accuracy_label = Column(String(50), nullable=True)
     training_samples = Column(Integer, default=0)
     feature_importance = Column(Text, nullable=True)  # JSON
     trained_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class TrainedModel(Base):
+    """Stores serialized ML model binaries in the database.
+    Survives Render deploys (ephemeral filesystem gets wiped, DB persists).
+    """
+    __tablename__ = "trained_models"
+
+    id = Column(Integer, primary_key=True)
+    model_name = Column(String(50), unique=True, nullable=False)  # game_outcome, win_trend
+    model_data = Column(Text, nullable=False)  # base64-encoded joblib bytes
+    metadata_json = Column(Text, nullable=True)  # JSON with accuracy, features, etc.
+    trained_at = Column(DateTime, default=utcnow)
 
 
 # ---------------------------------------------------------------------------
