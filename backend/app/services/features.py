@@ -106,7 +106,24 @@ def _rolling_pythag(games: list[Game], window: int) -> Optional[float]:
 
 
 def _opponent_win_pct(opponent: str, season: int, db: Session) -> float:
-    """Get opponent's current win% this season."""
+    """Get opponent's Pythagorean win% from team_strength table.
+
+    Uses Pythagorean W% (more stable than raw record) if available,
+    falls back to team_season_stats, then .500.
+    """
+    # Primary: team_strength table (all 30 teams, Pythagorean)
+    try:
+        from app.models.database import TeamStrength
+        ts = db.query(TeamStrength).filter(
+            TeamStrength.team_abbrev == opponent,
+            TeamStrength.season == season,
+        ).first()
+        if ts and ts.pythag_wpct is not None:
+            return ts.pythag_wpct
+    except Exception:
+        pass
+
+    # Fallback: team_season_stats
     stats = db.query(TeamSeasonStats).filter(
         TeamSeasonStats.team == opponent,
         TeamSeasonStats.season == season,

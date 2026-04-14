@@ -61,6 +61,87 @@ TEAM_ID_ABBR = {
 }
 
 
+def refresh_team_strength(season: int, db: Session) -> int:
+    """Pull standings for all 30 MLB teams and compute Pythagorean win%.
+
+    Stores in team_strength table. Used by ML model for opponent strength.
+    """
+    from app.models.database import TeamStrength
+
+    logger.info(f"Refreshing team strength ratings for {season}...")
+    data = mlb_api_get("/standings", {
+        "leagueId": "103,104",
+        "season": season,
+        "standingsTypes": "regularSeason",
+        "hydrate": "team",
+    })
+
+    count = 0
+    for rec in data.get("records", []):
+        for tr in rec.get("teamRecords", []):
+            team_info = tr.get("team", {})
+            team_id = team_info.get("id")
+            abbrev = TEAM_ID_ABBR.get(team_id)
+            if not abbrev:
+                continue
+
+            w = tr.get("wins", 0)
+            l = tr.get("losses", 0)
+            rs = tr.get("runsScored", 0)
+            ra = tr.get("runsAllowed", 0)
+            gp = w + l
+
+            # Pythagorean win%
+            if rs + ra > 0:
+                exp = 1.83
+                pythag = (rs ** exp) / (rs ** exp + ra ** exp)
+            else:
+                pythag = 0.500
+
+            # Blend with .500 for small samples (< 10 games)
+            if gp < 10:
+                blend = (gp / 10.0) * pythag + (1 - gp / 10.0) * 0.500
+                pythag = blend
+
+            win_pct = w / gp if gp > 0 else 0.500
+
+            try:
+                existing = db.query(TeamStrength).filter(
+                    TeamStrength.team_abbrev == abbrev,
+                    TeamStrength.season == season,
+                ).first()
+
+                if existing:
+                    existing.wins = w
+                    existing.losses = l
+                    existing.win_pct = round(win_pct, 3)
+                    existing.pythag_wpct = round(pythag, 3)
+                    existing.runs_scored = rs
+                    existing.runs_allowed = ra
+                else:
+                    db.add(TeamStrength(
+                        team_abbrev=abbrev, season=season,
+                        wins=w, losses=l,
+                        win_pct=round(win_pct, 3),
+                        pythag_wpct=round(pythag, 3),
+                        runs_scored=rs, runs_allowed=ra,
+                    ))
+                count += 1
+                db.flush()
+            except Exception as e:
+                logger.warning(f"  Skipping {abbrev}: {e}")
+                db.rollback()
+
+    try:
+        db.commit()
+    except Exception as e:
+        logger.error(f"  Team strength commit failed: {e}")
+        db.rollback()
+
+    logger.info(f"  Updated {count} team strength ratings")
+    return count
+
+
 def normalize_team(team_str: str) -> str:
     if not team_str:
         return ""

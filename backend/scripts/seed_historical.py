@@ -30,7 +30,7 @@ from app.services.ingestion import (
     compute_team_season_stats,
     pull_cubs_roster, pull_player_season_stats,
     mlb_api_get, TEAM_ID_ABBR, _safe_float, _safe_int,
-    compute_fip, compute_woba,
+    compute_fip, compute_woba, refresh_team_strength,
 )
 from app.models.database import Player, PitcherSeasonStats, HitterSeasonStats
 from app.config import get_settings
@@ -422,7 +422,14 @@ def main():
             if season >= CURRENT_YEAR - 1:  # Only pull game logs for recent seasons
                 seed_game_logs(db, season)
 
-            # 5. Team aggregates
+            # 5. League-wide team strength ratings (opponent strength for ML)
+            logger.info(f"  Refreshing team strength for {season}...")
+            try:
+                refresh_team_strength(season, db)
+            except Exception as e:
+                logger.error(f"  Team strength refresh failed: {e}")
+
+            # 6. Team aggregates
             logger.info(f"  Computing team stats for CHC {season}...")
             compute_team_season_stats("CHC", season, db)
 

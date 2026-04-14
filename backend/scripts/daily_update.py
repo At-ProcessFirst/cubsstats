@@ -36,6 +36,7 @@ from app.services.ingestion import (
     pull_mlb_pitching_stats, pull_mlb_batting_stats,
     load_mlb_pitching_to_db, load_mlb_batting_to_db,
     pull_statcast_range, load_statcast_to_db,
+    refresh_team_strength,
 )
 from app.services.benchmark_engine import refresh_player_benchmarks
 from app.services.divergence_engine import detect_pitcher_divergences, detect_hitter_divergences
@@ -85,6 +86,12 @@ def run_pass1(db, target_date: date = None):
 
     # Update team stats
     compute_team_season_stats("CHC", season, db)
+
+    # Refresh league-wide team strength (for ML opponent feature)
+    try:
+        refresh_team_strength(season, db)
+    except Exception as e:
+        logger.error(f"  Team strength refresh failed: {e}")
 
     # Refresh player percentiles
     refresh_player_benchmarks(season, db, cubs_only=True)

@@ -457,6 +457,28 @@ class ModelStatus(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class TeamStrength(Base):
+    """Current season strength ratings for all 30 MLB teams.
+    Used by ML model for opponent strength feature.
+    """
+    __tablename__ = "team_strength"
+
+    id = Column(Integer, primary_key=True)
+    team_abbrev = Column(String(10), nullable=False)
+    season = Column(Integer, nullable=False)
+    wins = Column(Integer, default=0)
+    losses = Column(Integer, default=0)
+    win_pct = Column(Float, default=0.500)
+    pythag_wpct = Column(Float, default=0.500)
+    runs_scored = Column(Integer, default=0)
+    runs_allowed = Column(Integer, default=0)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("team_abbrev", "season", name="uq_team_strength"),
+    )
+
+
 class TrainedModel(Base):
     """Stores serialized ML model binaries in the database.
     Survives Render deploys (ephemeral filesystem gets wiped, DB persists).
