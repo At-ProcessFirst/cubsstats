@@ -30,8 +30,11 @@ from app.services.benchmark_engine import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
+from datetime import date
+
 # Compute benchmarks for these seasons
-SEASONS = [2024, 2025]
+CURRENT_YEAR = date.today().year
+SEASONS = [2024, 2025, CURRENT_YEAR] if CURRENT_YEAR > 2025 else [2024, 2025]
 
 
 def main():
@@ -83,7 +86,17 @@ def main():
         except Exception as e:
             logger.error(f"  Divergence detection failed: {e}")
 
-        # 6. Train ML models from historical data
+        # 6. Refresh team strength for all seasons (needed for ML training)
+        logger.info("\n--- Refreshing Team Strength ---")
+        try:
+            from app.services.ingestion import refresh_team_strength
+            for season in SEASONS:
+                count = refresh_team_strength(season, db)
+                logger.info(f"  {season}: {count} teams")
+        except Exception as e:
+            logger.error(f"  Team strength refresh failed: {e}")
+
+        # 7. Train ML models from historical data (with real opponent strength)
         logger.info("\n--- Training ML Models ---")
         try:
             from app.services.ml_engine import train_all_models
