@@ -1,9 +1,5 @@
-import GradeBadge from './GradeBadge'
 import { ordinal } from '../utils/formatting'
 
-/**
- * Alert badge color mapping.
- */
 const ALERT_COLORS = {
   BREAKOUT: { color: '#34D399', bg: 'rgba(52,211,153, 0.12)' },
   REGRESS: { color: '#F87171', bg: 'rgba(248,113,113, 0.12)' },
@@ -11,23 +7,6 @@ const ALERT_COLORS = {
   INJURY: { color: '#F472B6', bg: 'rgba(244,114,182, 0.12)' },
 }
 
-/**
- * Divergence alert row with percentile context on both stats.
- *
- * Shows: badge, player name, both stat values with percentile ranks,
- * and plain English explanation.
- *
- * @param {object} props
- * @param {string} props.alertType - BREAKOUT, REGRESS, WATCH, INJURY
- * @param {string} props.playerName - Player name
- * @param {string} props.stat1Name - First stat name
- * @param {number|string} props.stat1Value - First stat value
- * @param {number} [props.stat1Percentile] - First stat percentile
- * @param {string} props.stat2Name - Second stat name
- * @param {number|string} props.stat2Value - Second stat value
- * @param {number} [props.stat2Percentile] - Second stat percentile
- * @param {string} props.explanation - Plain English explanation
- */
 export default function DivergenceAlert({
   alertType,
   playerName,
@@ -40,6 +19,10 @@ export default function DivergenceAlert({
   explanation,
 }) {
   const alertInfo = ALERT_COLORS[alertType] || ALERT_COLORS.WATCH
+
+  // Determine if stat2 is a league average benchmark (not a player stat)
+  const isBenchmark = stat2Name?.toLowerCase().includes('league avg') ||
+                      stat2Name?.toLowerCase().includes('mlb avg')
 
   return (
     <div
@@ -66,47 +49,55 @@ export default function DivergenceAlert({
         </span>
       </div>
 
-      {/* Stat comparison */}
-      <div className="flex items-center gap-4 mb-2">
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-text-secondary">
-            {stat1Name}:
-          </span>
+      {/* Stat comparison — player stat prominent, benchmark dimmer */}
+      <div className="flex items-center gap-3 mb-2">
+        {/* Player's stat — large and prominent */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-text-secondary">{stat1Name}:</span>
           <span
-            className="text-[12px] font-bold text-text-primary"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-[14px] font-bold"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              color: alertInfo.color,
+            }}
           >
             {stat1Value}
           </span>
           {stat1Percentile != null && (
-            <span
-              className="text-[9px] text-text-secondary"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
+            <span className="text-[9px] text-text-secondary"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               ({ordinal(stat1Percentile)})
             </span>
           )}
         </div>
 
-        <span className="text-[10px] text-text-secondary">vs</span>
+        {/* Comparison indicator */}
+        <span className="text-[10px] text-text-secondary">→</span>
 
+        {/* Benchmark or comparison stat — smaller, clearly secondary */}
         <div className="flex items-center gap-1">
-          <span className="text-[10px] text-text-secondary">
-            {stat2Name}:
-          </span>
-          <span
-            className="text-[12px] font-bold text-text-primary"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
-          >
-            {stat2Value}
-          </span>
-          {stat2Percentile != null && (
-            <span
-              className="text-[9px] text-text-secondary"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              ({ordinal(stat2Percentile)})
-            </span>
+          {isBenchmark ? (
+            <>
+              <span className="text-[9px] text-text-secondary">MLB avg:</span>
+              <span className="text-[11px] text-text-secondary"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                {stat2Value}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-[10px] text-text-secondary">{stat2Name}:</span>
+              <span className="text-[12px] font-bold text-text-primary"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                {stat2Value}
+              </span>
+              {stat2Percentile != null && (
+                <span className="text-[9px] text-text-secondary"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  ({ordinal(stat2Percentile)})
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>
