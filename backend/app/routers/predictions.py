@@ -9,7 +9,7 @@ from app.services.ml_engine import (
     detect_regression_flags, get_model_status,
 )
 from app.services.features import (
-    build_game_features, FEATURE_LABELS,
+    build_game_features, build_prediction_features, FEATURE_LABELS,
     GAME_OUTCOME_FEATURE_NAMES, WIN_TREND_FEATURE_NAMES,
     _get_cubs_games, _rolling_pythag, _opponent_win_pct,
 )
@@ -45,22 +45,12 @@ def get_game_outcome_prediction(
 
     features = build_game_features(next_game.game_pk, db)
     if features is None:
-        # Build approximate features from team stats
-        cubs_stats = db.query(TeamSeasonStats).filter(
-            TeamSeasonStats.team == "CHC",
-            TeamSeasonStats.season == season,
-        ).first()
-
-        opp = next_game.away_team if next_game.home_team == "CHC" else next_game.home_team
-        features = {
-            "rolling_10g_fip": cubs_stats.team_fip if cubs_stats else 4.00,
-            "rolling_10g_wrc_plus": cubs_stats.team_wrc_plus if cubs_stats else 100.0,
-            "team_oaa": 0.0,
-            "run_diff_10g": (cubs_stats.run_diff or 0) / max(1, (cubs_stats.games_played or 1)) * 10 if cubs_stats else 0,
-            "is_home": 1.0 if next_game.home_team == "CHC" else 0.0,
-            "opponent_win_pct": _opponent_win_pct(opp, season, db),
-            "rest_days": 1.0,
-            "bullpen_usage_3d": 0.0,
+        features = build_prediction_features(next_game.game_pk, db)
+    if features is None:
+        return {
+            "status": "active",
+            "win_probability": None,
+            "message": "Insufficient game history for prediction",
         }
 
     result = predict_game_outcome(features)
@@ -160,30 +150,16 @@ def get_upcoming_predictions(
             opp = game.away_team if game.home_team == "CHC" else game.home_team
             is_home = game.home_team == "CHC"
 
-            # Build features
+            # Build features from game history (no hardcoded defaults)
             features = build_game_features(game.game_pk, db)
             if features is None:
-                recent = all_games[-10:] if len(all_games) >= 10 else all_games
-                rd_10 = sum(
-                    ((g.home_score if g.home_team == "CHC" else g.away_score) or 0) -
-                    ((g.away_score if g.home_team == "CHC" else g.home_score) or 0)
-                    for g in recent
-                )
-                rest = max(0, (game.game_date - all_games[-1].game_date).days) if all_games else 1.0
+                features = build_prediction_features(game.game_pk, db)
 
-                features = {
-                    "rolling_10g_fip": (cubs_stats.team_fip or 4.0) if cubs_stats else 4.0,
-                    "rolling_10g_wrc_plus": (cubs_stats.team_wrc_plus or 100.0) if cubs_stats else 100.0,
-                    "team_oaa": 0.0,
-                    "run_diff_10g": float(rd_10),
-                    "is_home": 1.0 if is_home else 0.0,
-                    "opponent_win_pct": _opponent_win_pct(opp, season, db),
-                    "rest_days": float(rest),
-                    "bullpen_usage_3d": 0.0,
-                }
-
-            prediction = predict_game_outcome(features)
-            win_prob = prediction.get("win_probability")
+            if features is None:
+                win_prob = None
+            else:
+                prediction = predict_game_outcome(features)
+                win_prob = prediction.get("win_probability")
 
             results.append({
                 "game_pk": game.game_pk,

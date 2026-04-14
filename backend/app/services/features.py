@@ -134,18 +134,23 @@ def _opponent_win_pct(opponent: str, season: int, db: Session) -> float:
 
 
 def _bullpen_innings_last_3d(game_date, season: int, db: Session) -> float:
-    """Total Cubs reliever innings in the 3 days before game_date."""
+    """Total Cubs reliever innings in the 3 days before game_date.
+    Uses IP < 5.0 heuristic to identify relievers (works even when position_group not set).
+    """
     start = game_date - timedelta(days=3)
-    rp_games = db.query(PitcherGameStats).join(
-        Player, PitcherGameStats.player_id == Player.mlb_id
-    ).filter(
-        PitcherGameStats.season == season,
-        PitcherGameStats.game_date >= start,
-        PitcherGameStats.game_date < game_date,
-        Player.position_group == "RP",
-        Player.is_cubs == True,
-    ).all()
-    return sum(g.ip or 0 for g in rp_games)
+    try:
+        rp_games = db.query(PitcherGameStats).join(
+            Player, PitcherGameStats.player_id == Player.mlb_id
+        ).filter(
+            PitcherGameStats.season == season,
+            PitcherGameStats.game_date >= start,
+            PitcherGameStats.game_date < game_date,
+            Player.is_cubs == True,
+            PitcherGameStats.ip < 5.0,  # Reliever heuristic
+        ).all()
+        return sum(g.ip or 0 for g in rp_games)
+    except Exception:
+        return 0.0
 
 
 def _team_oaa(season: int, db: Session) -> float:
@@ -206,27 +211,13 @@ def build_game_features(game_pk: int, db: Session) -> Optional[dict]:
     # Rolling 10-game run differential
     run_diff_10g = sum(_game_runs(g)[0] - _game_runs(g)[1] for g in last10)
 
-    # Rolling 10-game win%  as proxy for team quality (FIP/wRC+ may not be available)
-    wins_10g = sum(1 for g in last10 if g.cubs_won)
-    rolling_wpct = wins_10g / 10.0
+    # Rolling 10-game: raw runs allowed per game (pitching quality proxy)
+    # Lower = better pitching. NOT overridden with season constants.
+    rolling_ra_per_g = sum(_game_runs(g)[1] for g in last10) / 10.0
 
-    # Rolling 10-game runs scored/allowed per game as proxies for wRC+ and FIP
-    rs_per_g = sum(_game_runs(g)[0] for g in last10) / 10.0
-    ra_per_g = sum(_game_runs(g)[1] for g in last10) / 10.0
-    # Map to approximate FIP (4.0 = average, lower RA → lower FIP proxy)
-    rolling_fip_proxy = max(1.5, min(7.0, ra_per_g * 0.9))
-    # Map to approximate wRC+ (100 = average ~4.5 RS/game)
-    rolling_wrc_proxy = max(50, min(180, (rs_per_g / 4.5) * 100))
-
-    # Use season-level stats if available to improve the proxy
-    cubs_stats = db.query(TeamSeasonStats).filter(
-        TeamSeasonStats.team == "CHC", TeamSeasonStats.season == season,
-    ).first()
-    if cubs_stats:
-        if cubs_stats.team_fip is not None:
-            rolling_fip_proxy = cubs_stats.team_fip
-        if cubs_stats.team_wrc_plus is not None:
-            rolling_wrc_proxy = cubs_stats.team_wrc_plus
+    # Rolling 10-game: raw runs scored per game (hitting quality proxy)
+    # Higher = better hitting. NOT overridden with season constants.
+    rolling_rs_per_g = sum(_game_runs(g)[0] for g in last10) / 10.0
 
     # Opponent strength from team_strength table (Pythagorean win%)
     opp = _opponent_abbr(game)
@@ -236,14 +227,14 @@ def build_game_features(game_pk: int, db: Session) -> Optional[dict]:
     rest = (game.game_date - prior[-1].game_date).days if prior else 1.0
 
     features = {
-        "rolling_10g_fip": rolling_fip_proxy,
-        "rolling_10g_wrc_plus": rolling_wrc_proxy,
-        "team_oaa": 0.0,  # OAA not available from game data, use neutral
+        "rolling_10g_fip": rolling_ra_per_g,       # RA/game (lower = better)
+        "rolling_10g_wrc_plus": rolling_rs_per_g,   # RS/game (higher = better)
+        "team_oaa": _team_oaa(season, db),
         "run_diff_10g": float(run_diff_10g),
         "is_home": 1.0 if game.home_team == "CHC" else 0.0,
         "opponent_win_pct": opp_wpct,
         "rest_days": float(max(0, rest)),
-        "bullpen_usage_3d": 0.0,  # Not available from game data, use neutral
+        "bullpen_usage_3d": _bullpen_innings_last_3d(game.game_date, season, db),
     }
     return features
 
@@ -255,6 +246,58 @@ def _rest_days(game: Game, prior_games: list[Game]) -> float:
     last = prior_games[-1]
     delta = (game.game_date - last.game_date).days
     return float(max(0, delta))
+
+
+def build_prediction_features(game_pk: int, db: Session) -> Optional[dict]:
+    """Build features for a scheduled/upcoming game.
+
+    Unlike build_game_features(), this uses the most recent COMPLETED games
+    to compute rolling features — the game itself doesn't need to be final.
+    For early-season games with <10 completed, looks back into prior season.
+    """
+    game = db.query(Game).filter(Game.game_pk == game_pk).first()
+    if not game:
+        return None
+
+    season = game.season
+    # All completed Cubs games up to this game's date
+    completed = db.query(Game).filter(
+        Game.season == season, Game.status == "final",
+        ((Game.home_team == "CHC") | (Game.away_team == "CHC")),
+        Game.game_date <= game.game_date,
+    ).order_by(Game.game_date.asc()).all()
+
+    # If not enough current-season games, prepend prior season
+    if len(completed) < 10:
+        prior = db.query(Game).filter(
+            Game.season == season - 1, Game.status == "final",
+            ((Game.home_team == "CHC") | (Game.away_team == "CHC")),
+        ).order_by(Game.game_date.asc()).all()
+        completed = prior + completed
+
+    if len(completed) < 10:
+        return None
+
+    last10 = completed[-10:]
+
+    rolling_ra_per_g = sum(_game_runs(g)[1] for g in last10) / 10.0
+    rolling_rs_per_g = sum(_game_runs(g)[0] for g in last10) / 10.0
+    run_diff_10g = sum(_game_runs(g)[0] - _game_runs(g)[1] for g in last10)
+
+    opp = game.away_team if game.home_team == "CHC" else game.home_team
+    opp_wpct = _opponent_win_pct(opp, season, db)
+    rest = max(0, (game.game_date - completed[-1].game_date).days) if completed else 1.0
+
+    return {
+        "rolling_10g_fip": rolling_ra_per_g,
+        "rolling_10g_wrc_plus": rolling_rs_per_g,
+        "team_oaa": _team_oaa(season, db),
+        "run_diff_10g": float(run_diff_10g),
+        "is_home": 1.0 if game.home_team == "CHC" else 0.0,
+        "opponent_win_pct": opp_wpct,
+        "rest_days": float(rest),
+        "bullpen_usage_3d": _bullpen_innings_last_3d(game.game_date, season, db),
+    }
 
 
 def build_training_dataset(season: int, db: Session) -> Optional[pd.DataFrame]:
