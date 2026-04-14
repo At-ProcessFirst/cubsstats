@@ -171,8 +171,8 @@ function DivergencePanel({ divergences, loading }) {
           No active divergences detected. All Cubs player stats are tracking their expected values.
         </p>
       ) : (
-        <div className="flex flex-col gap-2 overflow-y-auto max-h-[320px]">
-          {divergences.map((d) => (
+        <div className="flex flex-col gap-2">
+          {divergences.slice(0, 6).map((d) => (
             <DivergenceAlert
               key={d.id}
               alertType={d.alert_type}
@@ -186,6 +186,11 @@ function DivergencePanel({ divergences, loading }) {
               explanation={d.explanation}
             />
           ))}
+          {divergences.length > 6 && (
+            <Link to="/divergences" className="text-[10px] text-accent-blue hover:underline text-center py-1">
+              View all {divergences.length} alerts →
+            </Link>
+          )}
         </div>
       )}
     </div>
