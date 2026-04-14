@@ -1,47 +1,47 @@
 /**
- * Game prediction row with win probability and home advantage factor.
- *
- * @param {object} props
- * @param {string} props.opponent - Opponent team abbreviation
- * @param {string} props.date - Game date string
- * @param {boolean} props.isHome - Whether Cubs are home
- * @param {number} [props.winProbability] - Model win probability (0-1)
- * @param {number} [props.homeAdvantage] - Home advantage factor
- * @param {string} [props.status] - "model_not_trained" or active
+ * Game prediction row with Cubs win probability and favorability indicator.
  */
 export default function PredictionRow({
   opponent,
   date,
   isHome,
   winProbability,
-  homeAdvantage,
   status,
 }) {
   const isModelReady = status !== 'model_not_trained' && winProbability != null
-  const pct = isModelReady ? (winProbability * 100).toFixed(1) : null
+  const pct = isModelReady ? (winProbability * 100).toFixed(0) : null
+  const pctNum = pct ? parseFloat(pct) : null
 
-  // Color based on win probability
   const getProbColor = (p) => {
     if (p == null) return '#8892A8'
-    if (p >= 60) return '#34D399'
+    if (p >= 58) return '#34D399'
     if (p >= 52) return '#6EE7B7'
     if (p >= 48) return '#8892A8'
-    if (p >= 40) return '#FBBF24'
+    if (p >= 42) return '#FBBF24'
     return '#F87171'
   }
 
+  const getFavorLabel = (p) => {
+    if (p == null) return null
+    if (p >= 55) return { text: 'FAVORED', color: '#34D399' }
+    if (p >= 45) return { text: 'TOSS-UP', color: '#8892A8' }
+    return { text: 'UNDERDOG', color: '#FBBF24' }
+  }
+
+  const favor = getFavorLabel(pctNum)
+
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-white-8 last:border-b-0">
+    <div className="flex items-center gap-2 md:gap-3 py-2.5 border-b border-white-8 last:border-b-0">
       {/* Date */}
       <span
-        className="text-[10px] text-text-secondary w-[60px]"
+        className="text-[10px] text-text-secondary w-[55px] md:w-[60px]"
         style={{ fontFamily: "'JetBrains Mono', monospace" }}
       >
         {date}
       </span>
 
       {/* Matchup */}
-      <div className="flex items-center gap-1.5 w-[100px]">
+      <div className="flex items-center gap-1 w-[75px] md:w-[90px]">
         <span className="text-[10px] text-text-secondary">
           {isHome ? 'vs' : '@'}
         </span>
@@ -61,28 +61,42 @@ export default function PredictionRow({
               className="h-full rounded-full transition-all duration-500"
               style={{
                 width: `${pct}%`,
-                backgroundColor: getProbColor(parseFloat(pct)),
+                backgroundColor: getProbColor(pctNum),
               }}
             />
           )}
         </div>
 
-        {/* Probability display */}
+        {/* Cubs win probability — explicitly labeled */}
         <span
-          className="text-[13px] font-bold w-[55px] text-right"
+          className="text-[12px] font-bold w-[65px] text-right"
           style={{
             fontFamily: "'JetBrains Mono', monospace",
-            color: isModelReady ? getProbColor(parseFloat(pct)) : '#8892A8',
+            color: isModelReady ? getProbColor(pctNum) : '#8892A8',
           }}
         >
-          {isModelReady ? `${pct}%` : '—'}
+          {isModelReady ? `Cubs ${pct}%` : '—'}
         </span>
       </div>
 
-      {/* Home advantage indicator */}
+      {/* Favorability indicator */}
+      {favor && (
+        <span
+          className="text-[7px] md:text-[8px] px-1.5 py-0.5 rounded font-bold tracking-wider w-[62px] text-center"
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            color: favor.color,
+            backgroundColor: `${favor.color}18`,
+          }}
+        >
+          {favor.text}
+        </span>
+      )}
+
+      {/* Home indicator */}
       {isHome && (
         <span
-          className="text-[9px] px-1.5 py-0.5 rounded bg-cubs-blue/20 text-accent-blue"
+          className="text-[8px] px-1.5 py-0.5 rounded bg-cubs-blue/20 text-accent-blue"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           HOME

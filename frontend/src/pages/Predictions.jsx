@@ -86,7 +86,7 @@ export default function Predictions() {
             Models active — trained on 304 games from 2024-2025
           </p>
           <p className="text-[11px] text-text-secondary mt-0.5">
-            Game predictions update before each series. Win trend and regression detection run continuously. Models retrain weekly with new data.
+            Predictions update after each game — bullpen fatigue and recent results feed into the next game's forecast. Models retrain weekly with new data.
           </p>
         </div>
       </div>
@@ -112,12 +112,17 @@ export default function Predictions() {
             <span className="text-[9px] text-text-secondary italic">Updated weekly</span>
           </div>
 
-          <div className="flex items-center gap-4 mb-3 pb-2 border-b border-white-8">
+          <div className="flex items-center gap-4 mb-2 pb-2 border-b border-white-8">
             <BasePill label="Coin flip" value="50%" />
             <BasePill label="Home adv" value="54%" />
             <BasePill label="Model" value={predictions?.win_probability != null
-              ? `${(predictions.win_probability * 100).toFixed(1)}%` : 'Active'} accent />
+              ? `Cubs ${(predictions.win_probability * 100).toFixed(0)}%` : 'Active'} accent />
           </div>
+
+          <p className="text-[9px] text-text-secondary mb-3">
+            Each percentage shows the Cubs' estimated win probability.
+            Games in the same series may show similar predictions — they update as bullpen fatigue and results accumulate.
+          </p>
 
           {upLoading ? (
             <div className="flex flex-col gap-2">

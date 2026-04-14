@@ -213,12 +213,20 @@ function PredictionsPanel({ upcomingPredictions, loading }) {
         </span>
       </div>
 
+      {/* Legend */}
+      <p className="text-[9px] text-text-secondary mb-2">
+        Cubs win probability —{' '}
+        <span style={{ color: '#34D399' }}>green</span> = favored,{' '}
+        <span style={{ color: '#8892A8' }}>gray</span> = toss-up,{' '}
+        <span style={{ color: '#FBBF24' }}>amber</span> = underdog
+      </p>
+
       {/* Baselines row */}
       <div className="flex items-center gap-4 mb-3 pb-2 border-b border-white-8">
         <BaselinePill label="Coin flip" value="50%" />
         <BaselinePill label="Home adv" value="54%" />
         <BaselinePill label="Model" value={games.length && games[0].win_probability != null
-          ? `${(games[0].win_probability * 100).toFixed(0)}%` : 'Active'} accent />
+          ? `Cubs ${(games[0].win_probability * 100).toFixed(0)}%` : 'Active'} accent />
       </div>
 
       {loading ? (
