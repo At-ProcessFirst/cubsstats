@@ -7,6 +7,7 @@ import DefenseLab from './pages/DefenseLab'
 import Predictions from './pages/Predictions'
 import Divergences from './pages/Divergences'
 import Editorial from './pages/Editorial'
+import TheBooth from './pages/TheBooth'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard' },
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { to: '/predictions', label: 'Predictions' },
   { to: '/divergences', label: 'Divergences' },
   { to: '/editorial', label: 'Editorial' },
+  { to: '/booth', label: '🎙️ The Booth' },
 ]
 
 function CubsLogo() {
@@ -164,6 +166,7 @@ export default function App() {
             <Route path="/predictions" element={<Predictions />} />
             <Route path="/divergences" element={<Divergences />} />
             <Route path="/editorial" element={<Editorial />} />
+            <Route path="/booth" element={<TheBooth />} />
           </Routes>
         </ErrorBoundary>
       </main>

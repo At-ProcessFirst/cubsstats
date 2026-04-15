@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.models.database import init_db
-from app.routers import benchmarks, pitching, hitting, defense, team, predictions, divergences, editorials
+from app.routers import benchmarks, pitching, hitting, defense, team, predictions, divergences, editorials, booth
 
 settings = get_settings()
 
@@ -62,3 +62,4 @@ app.include_router(team.router, prefix="/api/team", tags=["team"])
 app.include_router(predictions.router, prefix="/api/predictions", tags=["predictions"])
 app.include_router(divergences.router, prefix="/api/divergences", tags=["divergences"])
 app.include_router(editorials.router, prefix="/api/editorials", tags=["editorials"])
+app.include_router(booth.router, prefix="/api/booth", tags=["booth"])
