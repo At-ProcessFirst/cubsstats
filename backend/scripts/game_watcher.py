@@ -1,155 +1,148 @@
 #!/usr/bin/env python3
 """
-game_watcher.py — Polls MLB Stats API to detect when a Cubs game goes Final.
+game_watcher.py — One-shot script that checks for completed Cubs games
+and runs the post-game pipeline for any new Final games.
 
-When a game goes Final, triggers the post-game pipeline (Pass 1 of daily_update).
-Designed to run as a long-lived process during game hours.
+Designed for Render cron jobs (runs once and exits). Schedule every 15 min
+during game hours to catch games as they finish.
 
 Usage:
     cd backend
     python -m scripts.game_watcher
-
-How it works:
-  1. Check today's Cubs schedule via MLB Stats API
-  2. If a game is scheduled/live, poll every 60 seconds
-  3. When status transitions to Final, run post-game pipeline
-  4. After processing, exit or wait for next game (doubleheaders)
 """
 
 import logging
 import sys
-import time
-from datetime import date, datetime, timezone
+from datetime import date, timedelta
 
 sys.path.insert(0, ".")
 
 from app.config import get_settings
-from app.models.database import SessionLocal, init_db, Game
+from app.models.database import SessionLocal, init_db, Game, Editorial
 from app.services.ingestion import (
     fetch_schedule, parse_mlb_api_games, upsert_games,
     fetch_boxscore, parse_boxscore_pitchers, parse_boxscore_hitters,
-    compute_team_season_stats,
+    compute_team_season_stats, refresh_team_strength,
 )
+from app.services.benchmark_engine import refresh_player_benchmarks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
-POLL_INTERVAL = 60  # seconds between status checks
-PREGAME_POLL = 300  # seconds between checks when no game is live
 
 
-def get_todays_cubs_games() -> list[dict]:
-    """Fetch today's Cubs games from MLB Stats API."""
+def process_game(game_data: dict, db) -> bool:
+    """Process a single Final game — box score, team stats, editorial."""
+    game_pk = game_data["gamePk"]
     today = date.today()
-    games = fetch_schedule(today, today, team_id=settings.cubs_team_id)
-    return games
+    season = today.year
 
+    # Check if we already fully processed this game
+    existing = db.query(Game).filter(Game.game_pk == game_pk).first()
+    if existing and existing.status == "final":
+        # Already in DB as final — check if team stats are current
+        # by verifying the editorial exists for this game
+        ed = db.query(Editorial).filter(Editorial.game_pk == game_pk).first()
+        if ed:
+            return False  # Already fully processed
 
-def run_post_game_pipeline(game_pk: int, game_data: dict):
-    """Run Pass 1 post-game pipeline — box score stats from MLB Stats API."""
-    logger.info(f"=== Post-game pipeline for game {game_pk} ===")
-    db = SessionLocal()
+    logger.info(f"Processing game {game_pk}...")
+
+    # 1. Upsert game record
+    games = parse_mlb_api_games([game_data], db)
+    upsert_games(games, db)
+
+    # 2. Pull box score
+    game_date_str = game_data.get("officialDate") or game_data.get("gameDate", "")[:10]
+    try:
+        gd = date.fromisoformat(game_date_str)
+    except (ValueError, TypeError):
+        gd = today
 
     try:
-        # 1. Update game record
-        game_date = date.today()
-        season = game_date.year
-
-        games = parse_mlb_api_games([game_data], db)
-        upsert_games(games, db)
-
-        # 2. Pull box score
-        logger.info(f"  Fetching box score for game {game_pk}...")
         boxscore = fetch_boxscore(game_pk)
-
-        # Determine which team key is Cubs (home or away)
         home_team = game_data.get("teams", {}).get("home", {}).get("team", {}).get("name", "")
         cubs_key = "home" if "Cubs" in home_team else "away"
 
-        # 3. Parse pitcher stats from box score
-        pitcher_count = parse_boxscore_pitchers(
-            boxscore, game_pk, game_date, season, cubs_key, db
-        )
-        logger.info(f"  Loaded {pitcher_count} Cubs pitcher game lines")
+        pitcher_count = parse_boxscore_pitchers(boxscore, game_pk, gd, season, cubs_key, db)
+        hitter_count = parse_boxscore_hitters(boxscore, game_pk, gd, season, cubs_key, db)
+        logger.info(f"  Box score: {pitcher_count} pitcher lines, {hitter_count} hitter lines")
+    except Exception as e:
+        logger.error(f"  Box score failed for {game_pk}: {e}")
 
-        # 4. Parse hitter stats from box score
-        hitter_count = parse_boxscore_hitters(
-            boxscore, game_pk, game_date, season, cubs_key, db
-        )
-        logger.info(f"  Loaded {hitter_count} Cubs hitter game lines")
+    # 3. Update team stats
+    compute_team_season_stats("CHC", season, db)
+    logger.info("  Team stats updated")
 
-        # 5. Update team aggregate stats
-        compute_team_season_stats("CHC", season, db)
-        logger.info("  Updated Cubs team season stats")
+    # 4. Refresh team strength ratings
+    try:
+        refresh_team_strength(season, db)
+    except Exception as e:
+        logger.warning(f"  Team strength refresh failed: {e}")
 
-        # 6. Mark game as processed (statcast not yet loaded)
-        game_record = db.query(Game).filter(Game.game_pk == game_pk).first()
-        if game_record:
-            game_record.statcast_loaded = False
-            db.commit()
+    # 5. Refresh player benchmarks
+    try:
+        refresh_player_benchmarks(season, db, cubs_only=True)
+    except Exception as e:
+        logger.warning(f"  Player benchmarks failed: {e}")
 
-        logger.info(f"=== Post-game pipeline complete for {game_pk} ===")
+    # 6. Generate editorial
+    try:
+        from app.services.editorial_engine import generate_daily_takeaway
+        editorial = generate_daily_takeaway(game_pk, db)
+        if editorial:
+            logger.info(f"  Editorial: {editorial.title}")
+    except Exception as e:
+        logger.warning(f"  Editorial failed: {e}")
+
+    return True
+
+
+def main():
+    logger.info("CubsStats Game Watcher — checking for completed games")
+
+    init_db()
+    db = SessionLocal()
+
+    try:
+        # Check today AND yesterday (covers overnight games, timezone issues)
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+
+        processed = 0
+
+        for check_date in [yesterday, today]:
+            try:
+                games_data = fetch_schedule(check_date, check_date, team_id=settings.cubs_team_id)
+            except Exception as e:
+                logger.error(f"Failed to fetch schedule for {check_date}: {e}")
+                continue
+
+            if not games_data:
+                continue
+
+            for game_data in games_data:
+                status = game_data.get("status", {}).get("abstractGameState", "Preview")
+                game_pk = game_data["gamePk"]
+
+                if status != "Final":
+                    logger.debug(f"  Game {game_pk} on {check_date}: {status} (not final)")
+                    continue
+
+                if process_game(game_data, db):
+                    processed += 1
+
+        if processed:
+            logger.info(f"Processed {processed} new game(s)")
+        else:
+            logger.info("No new games to process")
 
     except Exception as e:
-        logger.error(f"Post-game pipeline failed for {game_pk}: {e}")
+        logger.error(f"Game watcher failed: {e}")
     finally:
         db.close()
 
 
-def watch():
-    """Main watch loop — poll for game status and trigger pipeline."""
-    init_db()
-    logger.info("CubsStats Game Watcher started")
-    logger.info(f"Monitoring Cubs (team ID {settings.cubs_team_id}) games...")
-
-    processed_today = set()
-
-    while True:
-        try:
-            today = date.today()
-            games = get_todays_cubs_games()
-
-            if not games:
-                logger.info(f"No Cubs games today ({today}). Sleeping {PREGAME_POLL}s...")
-                time.sleep(PREGAME_POLL)
-                continue
-
-            any_live = False
-            for game_data in games:
-                game_pk = game_data["gamePk"]
-                status = game_data.get("status", {}).get("abstractGameState", "Preview")
-
-                if game_pk in processed_today:
-                    continue
-
-                if status == "Final":
-                    logger.info(f"Game {game_pk} is Final! Triggering post-game pipeline...")
-                    run_post_game_pipeline(game_pk, game_data)
-                    processed_today.add(game_pk)
-                elif status == "Live":
-                    any_live = True
-                    logger.debug(f"Game {game_pk} is Live...")
-
-            # Determine sleep interval
-            if any_live:
-                time.sleep(POLL_INTERVAL)
-            else:
-                all_processed = all(g["gamePk"] in processed_today for g in games)
-                if all_processed:
-                    logger.info("All today's games processed. Watcher done for today.")
-                    break
-                else:
-                    logger.info(f"Games not yet started. Checking again in {PREGAME_POLL}s...")
-                    time.sleep(PREGAME_POLL)
-
-        except KeyboardInterrupt:
-            logger.info("Game watcher stopped by user.")
-            break
-        except Exception as e:
-            logger.error(f"Watcher error: {e}")
-            time.sleep(POLL_INTERVAL)
-
-
 if __name__ == "__main__":
-    watch()
+    main()
