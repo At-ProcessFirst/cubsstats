@@ -121,10 +121,10 @@ def train_game_outcome_model(db: Session) -> dict:
 
     _ensure_model_dir()
 
-    # Build dataset from available seasons
+    # Build dataset from all available seasons (2015-present)
     frames = []
     current_year = date.today().year
-    for season in range(current_year - 2, current_year + 1):
+    for season in range(2015, current_year + 1):
         df = build_training_dataset(season, db)
         if df is not None and len(df) >= 20:
             frames.append(df)
@@ -251,7 +251,7 @@ def train_win_trend_model(db: Session) -> dict:
 
     frames = []
     current_year = date.today().year
-    for season in range(current_year - 2, current_year + 1):
+    for season in range(2015, current_year + 1):
         df = build_trend_features(season, db)
         if df is not None and len(df) >= 10:
             frames.append(df)
