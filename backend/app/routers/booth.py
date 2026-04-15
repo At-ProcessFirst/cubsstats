@@ -82,7 +82,7 @@ def booth_schema():
     """Return available tables and date ranges for reference."""
     return {
         "available_data": {
-            "seasons": [2024, 2025, 2026],
+            "seasons": list(range(2015, 2027)),
             "current_season": 2026,
             "tables": {
                 "games": "Game results with scores, opponents, home/away",

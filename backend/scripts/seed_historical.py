@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 CURRENT_YEAR = date.today().year
-SEASONS = [2024, 2025, CURRENT_YEAR] if CURRENT_YEAR > 2025 else [2024, 2025]
+SEASONS = list(range(2015, CURRENT_YEAR + 1))  # 2015 through current year
 
 
 def seed_league_wide_stats(db, season: int):

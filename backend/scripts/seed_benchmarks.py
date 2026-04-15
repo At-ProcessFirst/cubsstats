@@ -34,7 +34,7 @@ from datetime import date
 
 # Compute benchmarks for these seasons
 CURRENT_YEAR = date.today().year
-SEASONS = [2024, 2025, CURRENT_YEAR] if CURRENT_YEAR > 2025 else [2024, 2025]
+SEASONS = list(range(2015, CURRENT_YEAR + 1))  # 2015 through current year
 
 
 def main():

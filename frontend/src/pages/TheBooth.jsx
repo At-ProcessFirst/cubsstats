@@ -83,7 +83,7 @@ export default function TheBooth() {
           </h1>
         </div>
         <p className="text-sm text-text-secondary">
-          Ask anything about Cubs stats — powered by live data from 2024-present
+          Ask anything about Cubs stats — powered by live data from 2015-present
         </p>
       </div>
 
