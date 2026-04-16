@@ -95,24 +95,28 @@ def _call_claude(system: str, messages: list, max_tokens: int = 1500) -> Optiona
 
 def _get_live_context() -> str:
     """Pre-fetch live Cubs data from MLB Stats API for Booth context."""
-    from datetime import date as d
+    from datetime import datetime, timezone, timedelta
     from app.services.ingestion import mlb_api_get
+
+    # Use Central Time for "today" — Cubs are a Chicago team, Render runs UTC
+    ct = timezone(timedelta(hours=-5))  # CDT (Central Daylight Time)
+    today = datetime.now(ct).date()
+
     context_parts = []
 
     # 1. Active roster
     try:
         from app.services.ingestion import pull_cubs_roster
-        roster = pull_cubs_roster(d.today().year)
+        roster = pull_cubs_roster(today.year)
         if roster:
             roster_text = "\n".join(f"- {p['name']} ({p['position']})" for p in roster)
-            context_parts.append(f"## CURRENT ACTIVE CUBS ROSTER ({d.today().isoformat()})\n{roster_text}")
+            context_parts.append(f"## CURRENT ACTIVE CUBS ROSTER ({today.isoformat()})\n{roster_text}")
     except Exception as e:
         logger.debug(f"Roster fetch failed: {e}")
 
     # 2. Today's schedule
     try:
         from app.services.ingestion import fetch_schedule
-        today = d.today()
         games = fetch_schedule(today, today, team_id=112)
         if games:
             for g in games:
@@ -155,7 +159,7 @@ def _get_live_context() -> str:
     # 3. NL Central standings
     try:
         data = mlb_api_get("/standings", {
-            "leagueId": "104", "season": d.today().year,
+            "leagueId": "104", "season": today.year,
             "standingsTypes": "regularSeason", "hydrate": "team",
         })
         nl_central = []
@@ -169,15 +173,15 @@ def _get_live_context() -> str:
                     gb = tr.get("gamesBack", "-")
                     nl_central.append(f"- {team_name}: {w}-{l} (GB: {gb})")
         if nl_central:
-            context_parts.append(f"## NL CENTRAL STANDINGS ({d.today().isoformat()})\n" + "\n".join(nl_central))
+            context_parts.append(f"## NL CENTRAL STANDINGS ({today.isoformat()})\n" + "\n".join(nl_central))
     except Exception as e:
         logger.debug(f"Standings fetch failed: {e}")
 
     # 4. Recent transactions
     try:
         data = mlb_api_get("/transactions", {
-            "teamId": 112, "startDate": (d.today() - __import__('datetime').timedelta(days=14)).isoformat(),
-            "endDate": d.today().isoformat(),
+            "teamId": 112, "startDate": (today - timedelta(days=14)).isoformat(),
+            "endDate": today.isoformat(),
         })
         txns = []
         for t in data.get("transactions", [])[:10]:
@@ -186,7 +190,7 @@ def _get_live_context() -> str:
             if desc:
                 txns.append(f"- {dt}: {desc}")
         if txns:
-            context_parts.append(f"## RECENT CUBS TRANSACTIONS (last 14 days)\n" + "\n".join(txns))
+            context_parts.append("## RECENT CUBS TRANSACTIONS (last 14 days)\n" + "\n".join(txns))
     except Exception as e:
         logger.debug(f"Transactions fetch failed: {e}")
 
