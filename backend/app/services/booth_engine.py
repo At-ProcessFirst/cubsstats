@@ -96,8 +96,10 @@ def _call_claude(system: str, messages: list, max_tokens: int = 1500) -> Optiona
 def _get_live_context() -> str:
     """Pre-fetch live Cubs data from MLB Stats API for Booth context."""
     from datetime import date as d
+    from app.services.ingestion import mlb_api_get
     context_parts = []
 
+    # 1. Active roster
     try:
         from app.services.ingestion import pull_cubs_roster
         roster = pull_cubs_roster(d.today().year)
@@ -107,6 +109,7 @@ def _get_live_context() -> str:
     except Exception as e:
         logger.debug(f"Roster fetch failed: {e}")
 
+    # 2. Today's schedule
     try:
         from app.services.ingestion import fetch_schedule
         today = d.today()
@@ -126,6 +129,44 @@ def _get_live_context() -> str:
             context_parts.append(f"## TODAY ({today.isoformat()})\nNo Cubs game scheduled today.")
     except Exception as e:
         logger.debug(f"Schedule fetch failed: {e}")
+
+    # 3. NL Central standings
+    try:
+        data = mlb_api_get("/standings", {
+            "leagueId": "104", "season": d.today().year,
+            "standingsTypes": "regularSeason", "hydrate": "team",
+        })
+        nl_central = []
+        for rec in data.get("records", []):
+            div = rec.get("division", {}).get("name", "")
+            if "Central" in div:
+                for tr in rec.get("teamRecords", []):
+                    team_name = tr.get("team", {}).get("name", "")
+                    w = tr.get("wins", 0)
+                    l = tr.get("losses", 0)
+                    gb = tr.get("gamesBack", "-")
+                    nl_central.append(f"- {team_name}: {w}-{l} (GB: {gb})")
+        if nl_central:
+            context_parts.append(f"## NL CENTRAL STANDINGS ({d.today().isoformat()})\n" + "\n".join(nl_central))
+    except Exception as e:
+        logger.debug(f"Standings fetch failed: {e}")
+
+    # 4. Recent transactions
+    try:
+        data = mlb_api_get("/transactions", {
+            "teamId": 112, "startDate": (d.today() - __import__('datetime').timedelta(days=14)).isoformat(),
+            "endDate": d.today().isoformat(),
+        })
+        txns = []
+        for t in data.get("transactions", [])[:10]:
+            desc = t.get("description", "")
+            dt = t.get("date", "")[:10]
+            if desc:
+                txns.append(f"- {dt}: {desc}")
+        if txns:
+            context_parts.append(f"## RECENT CUBS TRANSACTIONS (last 14 days)\n" + "\n".join(txns))
+    except Exception as e:
+        logger.debug(f"Transactions fetch failed: {e}")
 
     return "\n\n".join(context_parts)
 
