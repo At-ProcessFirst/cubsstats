@@ -170,7 +170,7 @@ def ask(question: str, db: Session, conversation_history: list = None) -> dict:
 
     if not all_results or all(not r.get("rows") for r in all_results):
         return {
-            "answer": "No matching data found. The database covers Cubs data from 2024-2026.",
+            "answer": "No matching data found. The database covers Cubs data from 2015-present.",
             "data": None,
             "sources": list(set(sources)),
         }

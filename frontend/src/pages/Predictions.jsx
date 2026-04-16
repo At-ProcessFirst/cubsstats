@@ -83,7 +83,7 @@ export default function Predictions() {
         <span className="text-xl">🧠</span>
         <div>
           <p className="text-sm text-text-primary font-medium">
-            Models active — trained on 304 games from 2024-2025
+            Models active — trained on 2015-present data
           </p>
           <p className="text-[11px] text-text-secondary mt-0.5">
             Predictions update after each game — bullpen fatigue and recent results feed into the next game's forecast. Models retrain weekly with new data.

@@ -612,14 +612,14 @@ def _generate_fallback_recap(model_status: dict, season: int, db: Session) -> st
             if acc_pct > 52:
                 parts.append(
                     f"The Game Outcome model has been trained on {samples} games across "
-                    f"the 2024-2025 seasons, and it's finding signal — {acc_pct:.1f}% accuracy "
+                    f"the 2015-2025 seasons, and it's finding signal — {acc_pct:.1f}% accuracy "
                     f"beats the 50% coin-flip baseline. For context, Vegas typically lands "
                     f"around 55%, so there's room to grow as 2026 data accumulates."
                 )
             else:
                 parts.append(
                     f"The Game Outcome model has been trained on {samples} games across "
-                    f"the 2024-2025 seasons. Early accuracy sits at {acc_pct:.1f}% — "
+                    f"the 2015-2025 seasons. Early accuracy sits at {acc_pct:.1f}% — "
                     f"{'right around' if acc_pct >= 49 else 'below'} the coin-flip baseline, "
                     f"which tells us the model needs more current-season signal to find its edge. "
                     f"Baseball is inherently noisy — even Vegas only hits around 55% — so "
@@ -643,14 +643,14 @@ def _generate_fallback_recap(model_status: dict, season: int, db: Session) -> st
                 )
         else:
             parts.append(
-                f"The Game Outcome model is trained on {samples} games from 2024-2025 "
+                f"The Game Outcome model is trained on {samples} games from 2015-2025 "
                 f"and actively generating predictions."
             )
     else:
         gp = stats.games_played if stats else 0
         parts.append(
             f"The prediction models are trained on 304 games of historical data from "
-            f"2024-2025 and retrain weekly with new 2026 results. With {gp} games "
+            f"2015-2025 and retrain weekly with new 2026 results. With {gp} games "
             f"of current-season data layered in, the signal gets sharper each week."
         )
 
