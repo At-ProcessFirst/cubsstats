@@ -120,11 +120,47 @@ export default function App() {
                 {label}
               </NavLink>
             ))}
+
+            {/* At Process branding (desktop) */}
+            <a
+              href="https://at-processfirst.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 ml-4 pl-4 border-l border-white-8"
+            >
+              <img src="/at-process-logo.png" alt="At Process" className="w-9 h-9 object-contain" />
+              <div className="leading-tight">
+                <span className="text-[10px] text-text-secondary block">Powered by</span>
+                <span className="text-[14px] font-bold block" style={{
+                  background: 'linear-gradient(135deg, #a78bfa, #3b82f6)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}>At Process</span>
+              </div>
+            </a>
           </nav>
+
+          {/* At Process branding (mobile header) */}
+          <a
+            href="https://at-processfirst.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="md:hidden flex items-center gap-1.5 ml-auto mr-2"
+          >
+            <img src="/at-process-logo.png" alt="At Process" className="w-7 h-7 object-contain" />
+            <div className="leading-tight">
+              <span className="text-[8px] text-text-secondary block">Powered by</span>
+              <span className="text-[10px] font-bold block" style={{
+                background: 'linear-gradient(135deg, #a78bfa, #3b82f6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}>At Process</span>
+            </div>
+          </a>
 
           {/* Mobile hamburger */}
           <button
-            className="ml-auto md:hidden text-text-secondary hover:text-text-primary p-1"
+            className="md:hidden text-text-secondary hover:text-text-primary p-1"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             {menuOpen ? <CloseIcon /> : <HamburgerIcon />}
@@ -151,6 +187,22 @@ export default function App() {
                 {label}
               </NavLink>
             ))}
+            {/* At Process branding (mobile dropdown) */}
+            <a
+              href="https://at-processfirst.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2 mt-2 border-t border-white-8"
+            >
+              <img src="/at-process-logo.png" alt="At Process" className="w-8 h-8 object-contain" />
+              <span className="text-[11px] text-text-secondary">
+                Powered by <span className="font-bold" style={{
+                  background: 'linear-gradient(135deg, #a78bfa, #3b82f6)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}>At Process</span> AI Solutions
+              </span>
+            </a>
           </nav>
         )}
       </header>
@@ -172,22 +224,27 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white-8 mt-8 py-4 text-center">
-        <span
-          className="text-[11px] text-text-secondary"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+      <footer className="border-t border-white-8 mt-8 py-6 text-center">
+        <p className="text-[11px] text-text-secondary mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          CubsStats — Chicago Cubs Advanced Analytics Dashboard
+        </p>
+        <a
+          href="https://at-processfirst.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white-8 hover:bg-surface-hover transition-colors"
         >
-          Built by{' '}
-          <a
-            href="https://at-processfirst.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-accent-blue hover:underline"
-          >
-            At Process
-          </a>
-          {' '}| at-processfirst.com
-        </span>
+          <img src="/at-process-logo.png" alt="At Process" className="w-8 h-8 object-contain" />
+          <span className="text-[11px] text-text-secondary">
+            Powered by{' '}
+            <span className="font-bold" style={{
+              background: 'linear-gradient(135deg, #a78bfa, #3b82f6)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}>At Process</span>
+            {' '}AI Solutions
+          </span>
+        </a>
       </footer>
     </div>
   )
