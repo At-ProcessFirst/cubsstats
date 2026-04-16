@@ -114,6 +114,7 @@ function HeroCard({ editorial }) {
         </span>
         <span className="text-[10px] text-text-secondary ml-auto">
           {editorial.created_at ? new Date(editorial.created_at).toLocaleDateString('en-US', {
+            timeZone: 'America/Chicago',
             weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
           }) : ''}
         </span>
@@ -150,6 +151,7 @@ function EditorialGridCard({ editorial }) {
         </span>
         <span className="text-[9px] text-text-secondary ml-auto">
           {editorial.created_at ? new Date(editorial.created_at).toLocaleDateString('en-US', {
+            timeZone: 'America/Chicago',
             month: 'short', day: 'numeric',
           }) : ''}
         </span>

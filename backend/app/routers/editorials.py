@@ -113,5 +113,5 @@ def _serialize(e: Editorial) -> dict:
         "player_ids": json.loads(e.player_ids) if e.player_ids else [],
         "game_pk": e.game_pk,
         "season": e.season,
-        "created_at": e.created_at.isoformat() if e.created_at else None,
+        "created_at": e.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") if e.created_at else None,
     }

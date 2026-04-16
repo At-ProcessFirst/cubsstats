@@ -640,7 +640,7 @@ export default function Dashboard() {
         title: e.title,
         body: e.summary || e.body?.slice(0, 200),
         category: e.editorial_type?.replace('_', ' ').toUpperCase(),
-        timestamp: e.created_at ? new Date(e.created_at).toLocaleDateString() : null,
+        timestamp: e.created_at ? new Date(e.created_at).toLocaleDateString('en-US', { timeZone: 'America/Chicago' }) : null,
         accentColor: typeColors[e.editorial_type] || '#60A5FA',
       }))
     }
