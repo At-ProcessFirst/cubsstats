@@ -93,6 +93,55 @@ def _call_claude(system: str, messages: list, max_tokens: int = 1500) -> Optiona
         return None
 
 
+def _get_live_context() -> str:
+    """Pre-fetch live Cubs data from MLB Stats API for Booth context."""
+    from datetime import date as d
+    context_parts = []
+
+    try:
+        from app.services.ingestion import pull_cubs_roster
+        roster = pull_cubs_roster(d.today().year)
+        if roster:
+            roster_text = "\n".join(f"- {p['name']} ({p['position']})" for p in roster)
+            context_parts.append(f"## CURRENT ACTIVE CUBS ROSTER ({d.today().isoformat()})\n{roster_text}")
+    except Exception as e:
+        logger.debug(f"Roster fetch failed: {e}")
+
+    try:
+        from app.services.ingestion import fetch_schedule
+        today = d.today()
+        games = fetch_schedule(today, today, team_id=112)
+        if games:
+            for g in games:
+                home = g.get("teams", {}).get("home", {}).get("team", {}).get("name", "")
+                away = g.get("teams", {}).get("away", {}).get("team", {}).get("name", "")
+                status = g.get("status", {}).get("detailedState", "Scheduled")
+                game_time = g.get("gameDate", "")
+                context_parts.append(
+                    f"## TODAY'S GAME ({today.isoformat()})\n"
+                    f"{away} at {home} — {status}\n"
+                    f"Game time: {game_time}"
+                )
+        else:
+            context_parts.append(f"## TODAY ({today.isoformat()})\nNo Cubs game scheduled today.")
+    except Exception as e:
+        logger.debug(f"Schedule fetch failed: {e}")
+
+    return "\n\n".join(context_parts)
+
+
+# Cache live context for 5 minutes to avoid hitting MLB API on every question
+_live_context_cache = {"text": "", "timestamp": 0}
+
+
+def _get_cached_live_context() -> str:
+    now = time.time()
+    if now - _live_context_cache["timestamp"] > 300:  # 5 minute cache
+        _live_context_cache["text"] = _get_live_context()
+        _live_context_cache["timestamp"] = now
+    return _live_context_cache["text"]
+
+
 def ask(question: str, db: Session, conversation_history: list = None) -> dict:
     """Process a natural language question about Cubs baseball.
 
@@ -101,13 +150,17 @@ def ask(question: str, db: Session, conversation_history: list = None) -> dict:
     if not question or len(question) > 500:
         return {"answer": None, "error": "Question must be 1-500 characters.", "data": None, "sources": []}
 
+    # Pre-fetch live data from MLB Stats API (roster, today's schedule)
+    live_context = _get_cached_live_context()
+    enriched_prompt = SYSTEM_PROMPT + "\n\n" + live_context if live_context else SYSTEM_PROMPT
+
     # Step 1: Get SQL query plan from Claude
     messages = []
     if conversation_history:
         messages.extend(conversation_history[-6:])  # Last 3 exchanges max
     messages.append({"role": "user", "content": question})
 
-    plan_response = _call_claude(SYSTEM_PROMPT, messages)
+    plan_response = _call_claude(enriched_prompt, messages)
     if not plan_response:
         return {
             "answer": "The Booth is temporarily unavailable. Try again in a moment.",
@@ -134,8 +187,21 @@ def ask(question: str, db: Session, conversation_history: list = None) -> dict:
 
     queries = plan.get("queries", [])
     if not queries:
+        # Claude may have answered from live context (roster, schedule) without SQL
+        narrative_prompt = plan.get("narrative_prompt", "")
+        if narrative_prompt and live_context:
+            narration = _call_claude(
+                NARRATION_SYSTEM,
+                [{"role": "user", "content": f"Question: {question}\n\nLive data:\n{live_context}\n\n{narrative_prompt}"}],
+                max_tokens=500,
+            )
+            return {
+                "answer": narration or plan.get("reasoning", ""),
+                "data": None,
+                "sources": ["MLB Stats API (live)"],
+            }
         return {
-            "answer": plan.get("reasoning", "I couldn't formulate a query for that question."),
+            "answer": plan.get("reasoning", "I couldn't find that information in the database or live data."),
             "data": None,
             "sources": [],
         }

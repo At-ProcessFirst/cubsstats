@@ -142,3 +142,16 @@ Question: "Who are the Cubs players flagged for regression?"
   "queries": [{"sql": "SELECT p.name, da.alert_type, da.stat1_name, da.stat1_value, da.stat2_name, da.stat2_value, da.explanation FROM divergence_alerts da JOIN players p ON p.mlb_id = da.player_id WHERE da.is_active = true ORDER BY da.gap DESC LIMIT 20", "description": "Active divergence alerts"}],
   "narrative_prompt": "Explain which Cubs players are flagged for regression or breakout and why"
 }
+
+## LIVE DATA (appended dynamically)
+
+Below the examples, you may see CURRENT ACTIVE CUBS ROSTER and TODAY'S GAME sections.
+This live data is fetched in real-time from the MLB Stats API. Use it to answer questions
+about the current roster, today's game, batting order, or who's on the team right now.
+For roster/lineup questions, use this live data directly — do NOT try to query the database.
+Instead, return a JSON with empty queries and put your answer in the narrative_prompt:
+{
+  "reasoning": "Using live roster data provided in context",
+  "queries": [],
+  "narrative_prompt": "List the current Cubs roster from the live data above"
+}
