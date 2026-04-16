@@ -424,9 +424,8 @@ def main():
             # 3. Cubs game schedule + results
             seed_games(db, season)
 
-            # 4. Game logs for current season Cubs players
-            if season >= CURRENT_YEAR - 1:  # Only pull game logs for recent seasons
-                seed_game_logs(db, season)
+            # 4. Game logs for Cubs players (all seasons — needed for counting stats)
+            seed_game_logs(db, season)
 
             # 5. League-wide team strength ratings (opponent strength for ML)
             logger.info(f"  Refreshing team strength for {season}...")
