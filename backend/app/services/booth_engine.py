@@ -127,6 +127,28 @@ def _get_live_context() -> str:
                 )
         else:
             context_parts.append(f"## TODAY ({today.isoformat()})\nNo Cubs game scheduled today.")
+
+        # Fetch lineups if game exists
+        if games:
+            try:
+                lineup_data = mlb_api_get("/schedule", {
+                    "teamId": 112, "date": today.isoformat(), "sportId": 1, "hydrate": "lineups",
+                })
+                for ld in lineup_data.get("dates", []):
+                    for lg in ld.get("games", []):
+                        lineups = lg.get("lineups", {})
+                        cubs_home = lg.get("teams", {}).get("home", {}).get("team", {}).get("name", "")
+                        is_cubs_home = "Cubs" in cubs_home
+                        cubs_side = "homePlayers" if is_cubs_home else "awayPlayers"
+                        players = lineups.get(cubs_side, [])
+                        if players:
+                            lineup_text = "\n".join(
+                                f"{i+1}. {p.get('fullName', '?')} ({p.get('primaryPosition', {}).get('abbreviation', '?')})"
+                                for i, p in enumerate(players[:9])
+                            )
+                            context_parts.append(f"## CUBS BATTING ORDER (today's game)\n{lineup_text}")
+            except Exception as e:
+                logger.debug(f"Lineup fetch failed: {e}")
     except Exception as e:
         logger.debug(f"Schedule fetch failed: {e}")
 
