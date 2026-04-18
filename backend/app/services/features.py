@@ -161,24 +161,26 @@ def _bullpen_innings_last_3d(game_date, season: int, db: Session) -> float:
 def _get_starter_era(game_pk: int, team_abbrev: str, season: int, db: Session) -> float:
     """Get the starting pitcher's ERA for a specific game.
 
-    For historical games: finds the pitcher who threw the most IP in that game.
+    For historical (final) games: DB-only lookup via pitcher_game_stats + season stats.
     For upcoming games: fetches probable pitcher from MLB API.
-    Falls back to team ERA if no starter data available.
+    Falls back to 4.00 if no starter data available.
     """
-    # Try historical: find the pitcher with the most IP in this game for this team
+    # Historical: find the pitcher with the most IP in this game for this team
     starters = db.query(PitcherGameStats).filter(
         PitcherGameStats.game_pk == game_pk,
         PitcherGameStats.season == season,
     ).order_by(PitcherGameStats.ip.desc()).all()
 
     if starters:
-        # Filter to the team's pitchers
+        # Use PitcherSeasonStats.team (per-season) instead of Player.team (current only)
         team_pids = set(
-            p.mlb_id for p in db.query(Player).filter(Player.team == team_abbrev).all()
+            ps.player_id for ps in db.query(PitcherSeasonStats.player_id).filter(
+                PitcherSeasonStats.team == team_abbrev,
+                PitcherSeasonStats.season == season,
+            ).all()
         )
         for s in starters:
             if s.player_id in team_pids and s.ip and s.ip >= 3.0:
-                # Look up their season ERA
                 season_stats = db.query(PitcherSeasonStats).filter(
                     PitcherSeasonStats.player_id == s.player_id,
                     PitcherSeasonStats.season == season,
@@ -186,71 +188,88 @@ def _get_starter_era(game_pk: int, team_abbrev: str, season: int, db: Session) -
                 if season_stats and season_stats.era is not None:
                     return season_stats.era
 
-    # Try upcoming: fetch probable pitcher from MLB API
-    try:
-        from app.services.ingestion import mlb_api_get
-        game_data = mlb_api_get("/schedule", {
-            "gamePk": game_pk, "hydrate": "probablePitcher",
-        })
-        for d in game_data.get("dates", []):
-            for g in d.get("games", []):
-                for side in ["home", "away"]:
-                    team_name = g.get("teams", {}).get(side, {}).get("team", {}).get("name", "")
-                    if team_abbrev == "CHC" and "Cubs" in team_name:
-                        pp = g.get("teams", {}).get(side, {}).get("probablePitcher", {})
-                    elif team_abbrev != "CHC":
-                        if "Cubs" not in team_name:
+    # Only call API for upcoming/scheduled games (not during training)
+    game = db.query(Game).filter(Game.game_pk == game_pk).first()
+    if game and game.status != "final":
+        try:
+            from app.services.ingestion import mlb_api_get
+            game_data = mlb_api_get("/schedule", {
+                "gamePk": game_pk, "hydrate": "probablePitcher",
+            })
+            for d in game_data.get("dates", []):
+                for g in d.get("games", []):
+                    for side in ["home", "away"]:
+                        team_name = g.get("teams", {}).get(side, {}).get("team", {}).get("name", "")
+                        if team_abbrev == "CHC" and "Cubs" in team_name:
                             pp = g.get("teams", {}).get(side, {}).get("probablePitcher", {})
+                        elif team_abbrev != "CHC":
+                            if "Cubs" not in team_name:
+                                pp = g.get("teams", {}).get(side, {}).get("probablePitcher", {})
+                            else:
+                                continue
                         else:
                             continue
-                    else:
-                        continue
-                    pid = pp.get("id")
-                    if pid:
-                        ps = db.query(PitcherSeasonStats).filter(
-                            PitcherSeasonStats.player_id == pid,
-                            PitcherSeasonStats.season == season,
-                        ).first()
-                        if ps and ps.era is not None:
-                            return ps.era
-    except Exception:
-        pass
+                        pid = pp.get("id")
+                        if pid:
+                            ps = db.query(PitcherSeasonStats).filter(
+                                PitcherSeasonStats.player_id == pid,
+                                PitcherSeasonStats.season == season,
+                            ).first()
+                            if ps and ps.era is not None:
+                                return ps.era
+        except Exception:
+            pass
 
-    # Fallback: team average ERA
     return 4.00
 
 
-def _get_day_night(game_pk: int) -> float:
-    """Return 1.0 for day game, 0.0 for night game."""
-    try:
-        from app.services.ingestion import mlb_api_get
-        data = mlb_api_get("/schedule", {"gamePk": game_pk})
-        for d in data.get("dates", []):
-            for g in d.get("games", []):
-                return 1.0 if g.get("dayNight") == "day" else 0.0
-    except Exception:
-        pass
-    return 0.0  # Default to night
+def _get_day_night(game_pk: int, db: Session) -> float:
+    """Return 1.0 for day game, 0.0 for night game. DB-first, API fallback for upcoming."""
+    game = db.query(Game).filter(Game.game_pk == game_pk).first()
+    if game and game.day_night:
+        return 1.0 if game.day_night == "day" else 0.0
 
+    # Only call API for games without day_night stored (upcoming/not yet ingested)
+    if game and game.status != "final":
+        try:
+            from app.services.ingestion import mlb_api_get
+            data = mlb_api_get("/schedule", {"gamePk": game_pk})
+            for d in data.get("dates", []):
+                for g in d.get("games", []):
+                    return 1.0 if g.get("dayNight") == "day" else 0.0
+        except Exception:
+            pass
 
-def _get_streak(season: int) -> float:
-    """Get Cubs current win/loss streak. Positive = win streak, negative = loss streak."""
-    try:
-        from app.services.ingestion import mlb_api_get
-        data = mlb_api_get("/standings", {
-            "leagueId": "103,104", "season": season,
-            "standingsTypes": "regularSeason", "hydrate": "team",
-        })
-        for rec in data.get("records", []):
-            for tr in rec.get("teamRecords", []):
-                if tr.get("team", {}).get("id") == 112:
-                    streak = tr.get("streak", {})
-                    num = streak.get("streakNumber", 0)
-                    stype = streak.get("streakType", "")
-                    return float(num) if stype == "wins" else float(-num)
-    except Exception:
-        pass
     return 0.0
+
+
+def _get_streak(season: int, db: Session, before_date=None) -> float:
+    """Compute Cubs win/loss streak from game results in DB.
+
+    For historical games: pass before_date to get streak as of that game.
+    For upcoming games: pass None to get current streak.
+    """
+    query = db.query(Game).filter(
+        Game.season == season, Game.status == "final",
+        ((Game.home_team == "CHC") | (Game.away_team == "CHC")),
+    ).order_by(Game.game_date.desc())
+
+    if before_date:
+        query = query.filter(Game.game_date < before_date)
+
+    games = query.limit(20).all()
+    if not games:
+        return 0.0
+
+    streak = 0
+    first_result = games[0].cubs_won
+    for g in games:
+        if g.cubs_won == first_result:
+            streak += 1
+        else:
+            break
+
+    return float(streak) if first_result else float(-streak)
 
 
 def _team_oaa(season: int, db: Session) -> float:
@@ -337,8 +356,8 @@ def build_game_features(game_pk: int, db: Session) -> Optional[dict]:
         "bullpen_usage_3d": _bullpen_innings_last_3d(game.game_date, season, db),
         "cubs_starter_era": _get_starter_era(game_pk, "CHC", season, db),
         "opp_starter_era": _get_starter_era(game_pk, opp, season, db),
-        "is_day_game": _get_day_night(game_pk),
-        "streak_length": _get_streak(season),
+        "is_day_game": _get_day_night(game_pk, db),
+        "streak_length": _get_streak(season, db, before_date=game.game_date),
     }
     return features
 
@@ -403,8 +422,8 @@ def build_prediction_features(game_pk: int, db: Session) -> Optional[dict]:
         "bullpen_usage_3d": _bullpen_innings_last_3d(game.game_date, season, db),
         "cubs_starter_era": _get_starter_era(game_pk, "CHC", season, db),
         "opp_starter_era": _get_starter_era(game_pk, opp, season, db),
-        "is_day_game": _get_day_night(game_pk),
-        "streak_length": _get_streak(season),
+        "is_day_game": _get_day_night(game_pk, db),
+        "streak_length": _get_streak(season, db),
     }
 
 

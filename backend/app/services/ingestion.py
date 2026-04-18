@@ -545,6 +545,7 @@ def parse_mlb_api_games(games_data: list[dict], db: Session) -> list[Game]:
             cubs_opponent=cubs_opponent if is_cubs_game else None,
             cubs_home=cubs_home if is_cubs_game else None,
             cubs_won=cubs_won, status=status,
+            day_night=g.get("dayNight"),
         )
         parsed.append(game)
     return parsed
@@ -560,6 +561,8 @@ def upsert_games(games: list[Game], db: Session) -> int:
                 existing.away_score = game.away_score
                 existing.status = game.status
                 existing.cubs_won = game.cubs_won
+                if game.day_night:
+                    existing.day_night = game.day_night
             else:
                 db.add(game)
                 count += 1
