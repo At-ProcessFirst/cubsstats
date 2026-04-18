@@ -55,7 +55,7 @@ def _fetch_all() -> dict:
     try:
         data = mlb_api_get("/standings", {
             "leagueId": "104", "season": today.year,
-            "standingsTypes": "regularSeason", "hydrate": "team",
+            "standingsTypes": "regularSeason", "hydrate": "team,division",
         })
         for rec in data.get("records", []):
             div = rec.get("division", {}).get("name", "")
