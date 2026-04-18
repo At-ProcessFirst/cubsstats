@@ -26,9 +26,9 @@ export default function PredictionRow({
 
   const getFavorLabel = (p) => {
     if (p == null) return null
-    if (p >= 55) return { text: 'FAVORED', color: '#34D399' }
-    if (p >= 45) return { text: 'TOSS-UP', color: '#8892A8' }
-    return { text: 'UNDERDOG', color: '#FBBF24' }
+    if (p >= 55) return { text: 'FAVORED', color: '#34D399', bg: 'rgba(52,211,153,0.15)' }
+    if (p >= 45) return { text: 'TOSS-UP', color: '#E8ECF4', bg: 'rgba(255,255,255,0.10)' }
+    return { text: 'UNDERDOG', color: '#FBBF24', bg: 'rgba(251,191,36,0.15)' }
   }
 
   const favor = getFavorLabel(pctNum)
@@ -36,7 +36,7 @@ export default function PredictionRow({
   const hasStarters = cubsStarter && oppStarter && cubsStarter !== 'TBD' && oppStarter !== 'TBD'
 
   return (
-    <div className="py-2.5 border-b border-white-8 last:border-b-0">
+    <div className="py-2.5 border-b border-white-8 last:border-b-0 hover:bg-surface-hover/50 transition-colors rounded">
       <div className="flex items-center gap-2 md:gap-3">
         {/* Date */}
         <span
@@ -88,11 +88,11 @@ export default function PredictionRow({
         {/* Favorability indicator */}
         {favor && (
           <span
-            className="text-[7px] md:text-[8px] px-1.5 py-0.5 rounded font-bold tracking-wider w-[62px] text-center"
+            className="text-[8px] md:text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider w-[62px] text-center"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               color: favor.color,
-              backgroundColor: `${favor.color}18`,
+              backgroundColor: favor.bg,
             }}
           >
             {favor.text}
@@ -111,11 +111,11 @@ export default function PredictionRow({
           )}
           {dayNight && (
             <span
-              className="text-[8px] px-1 py-0.5 rounded text-text-secondary"
+              className="text-[8px] px-1.5 py-0.5 rounded font-medium"
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
-                backgroundColor: dayNight === 'day' ? 'rgba(251,191,36,0.12)' : 'rgba(136,146,168,0.12)',
-                color: dayNight === 'day' ? '#FBBF24' : '#8892A8',
+                backgroundColor: dayNight === 'day' ? 'rgba(251,191,36,0.18)' : 'rgba(96,165,250,0.15)',
+                color: dayNight === 'day' ? '#FBBF24' : '#60A5FA',
               }}
             >
               {dayNight === 'day' ? 'DAY' : 'NIGHT'}
@@ -128,7 +128,7 @@ export default function PredictionRow({
       {hasStarters && (
         <div className="ml-[55px] md:ml-[60px] mt-0.5">
           <span
-            className="text-[9px] text-text-secondary"
+            className="text-[10px] text-text-secondary"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {cubsStarter} vs {oppStarter}

@@ -240,7 +240,7 @@ export default function Editorial() {
 
       {/* Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-36 rounded-lg bg-surface-hover animate-pulse" />
           ))}
@@ -254,7 +254,7 @@ export default function Editorial() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {gridItems.map(e => (
             <EditorialGridCard key={e.id} editorial={e} />
           ))}

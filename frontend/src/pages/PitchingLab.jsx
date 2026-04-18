@@ -143,7 +143,7 @@ export default function PitchingLab() {
           <div key={i} className="h-10 w-32 rounded bg-surface-hover animate-pulse" />
         ))}</div>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 -mb-1">
           {sortedPitchers.map(p => {
             const isActive = p.player_id === activeId
             const badge = statusBadge(p, isActive ? playerBenchmarks : [])
@@ -151,7 +151,7 @@ export default function PitchingLab() {
               <button
                 key={p.player_id}
                 onClick={() => setSelectedId(p.player_id)}
-                className={`px-3 py-2 rounded-lg border transition-colors text-sm font-medium flex items-center gap-2 ${
+                className={`px-2 md:px-3 py-1.5 md:py-2 rounded-lg border transition-colors text-sm font-medium flex items-center gap-1.5 shrink-0 ${
                   isActive
                     ? 'bg-cubs-blue border-cubs-blue text-white'
                     : 'bg-surface border-white-8 text-text-secondary hover:bg-surface-hover hover:text-text-primary'

@@ -43,7 +43,8 @@ export default function WinTrendChart({ data = [], summary }) {
         WIN TREND
       </h3>
 
-      <ResponsiveContainer width="100%" height={280}>
+      <div className="h-[220px] md:h-[280px]">
+      <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
           <XAxis
@@ -130,6 +131,7 @@ export default function WinTrendChart({ data = [], summary }) {
           />
         </ComposedChart>
       </ResponsiveContainer>
+      </div>
 
       {/* Summary */}
       {summary && (

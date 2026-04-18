@@ -329,13 +329,13 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
         <div>
           {/* Column headers */}
           <div className="flex items-center gap-3 pb-1 mb-1 border-b border-white-8">
-            <span className="text-[8px] uppercase text-text-secondary w-[140px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[140px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Pitcher</span>
-            <span className="text-[8px] uppercase text-text-secondary w-[90px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[90px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>ERA</span>
-            <span className="text-[8px] uppercase text-text-secondary w-[90px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[90px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>True ERA</span>
-            <span className="text-[8px] uppercase text-text-secondary flex-1"
+            <span className="text-[9px] uppercase text-text-secondary flex-1"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Gap</span>
           </div>
 
@@ -423,13 +423,13 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
         <div>
           {/* Column headers */}
           <div className="flex items-center gap-3 pb-1 mb-1 border-b border-white-8">
-            <span className="text-[8px] uppercase text-text-secondary w-[100px] md:w-[140px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[100px] md:w-[140px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Hitter</span>
-            <span className="text-[8px] uppercase text-text-secondary w-[90px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[90px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>AVG</span>
-            <span className="text-[8px] uppercase text-text-secondary w-[90px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[90px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>OBP</span>
-            <span className="text-[8px] uppercase text-text-secondary flex-1"
+            <span className="text-[9px] uppercase text-text-secondary flex-1"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>wOBA</span>
           </div>
 
@@ -552,6 +552,12 @@ function DefenseModelPanel({ teamStats, modelStatus, loading, standings }) {
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 NL Central
               </h4>
+              {/* Column headers */}
+              <div className="flex items-center justify-between py-0.5 mb-0.5" style={{ paddingLeft: 8 }}>
+                <span className="text-[9px] text-text-secondary w-[32px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Team</span>
+                <span className="text-[9px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>W-L</span>
+                <span className="text-[9px] text-text-secondary w-[30px] text-right" style={{ fontFamily: "'JetBrains Mono', monospace" }}>GB</span>
+              </div>
               {standings.map((s) => (
                 <div
                   key={s.abbrev}
@@ -559,7 +565,7 @@ function DefenseModelPanel({ teamStats, modelStatus, loading, standings }) {
                   style={s.abbrev === 'CHC' ? { borderLeft: '2px solid #0E3386', paddingLeft: 6 } : { paddingLeft: 8 }}
                 >
                   <span
-                    className="text-[10px] text-text-primary"
+                    className="text-[11px] text-text-primary w-[32px]"
                     style={{
                       fontFamily: "'JetBrains Mono', monospace",
                       fontWeight: s.abbrev === 'CHC' ? 700 : 400,
@@ -567,10 +573,10 @@ function DefenseModelPanel({ teamStats, modelStatus, loading, standings }) {
                   >
                     {s.abbrev}
                   </span>
-                  <span className="text-[10px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[11px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     {s.wins}-{s.losses}
                   </span>
-                  <span className="text-[10px] text-text-secondary w-[30px] text-right" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[11px] text-text-secondary w-[30px] text-right" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     {s.games_back === '-' ? '--' : s.games_back}
                   </span>
                 </div>
@@ -764,7 +770,7 @@ export default function Dashboard() {
       </div>
 
       {/* 6. Latest from the Analyst */}
-      <div>
+      <div className="bg-surface rounded-lg border border-white-8 p-4">
         <div className="flex items-center justify-between mb-3">
           <h3
             className="text-[11px] uppercase tracking-widest text-text-secondary"

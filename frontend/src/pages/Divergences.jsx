@@ -40,7 +40,7 @@ export default function Divergences() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1">
         {FILTER_OPTIONS.map(opt => {
           const isActive = filter === opt
           const colors = {
@@ -51,7 +51,7 @@ export default function Divergences() {
             <button
               key={opt}
               onClick={() => setFilter(opt)}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
                 isActive ? 'text-white' : 'text-text-secondary hover:text-text-primary'
               }`}
               style={{

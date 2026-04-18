@@ -39,6 +39,23 @@ export default function DefenseLab() {
         </div>
       )}
 
+      {/* Metric legend */}
+      <div className="bg-surface rounded-lg border border-white-8 px-4 py-2.5 flex flex-wrap gap-x-4 gap-y-1">
+        {[
+          ['Fld%', 'Fielding Percentage'],
+          ['TC', 'Total Chances'],
+          ['PO', 'Putouts'],
+          ['A', 'Assists'],
+          ['E', 'Errors'],
+          ['DP', 'Double Plays'],
+        ].map(([abbr, full]) => (
+          <span key={abbr} className="text-[10px] text-text-secondary">
+            <span className="font-semibold text-text-primary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{abbr}</span>
+            {' = '}{full}
+          </span>
+        ))}
+      </div>
+
       {/* Fielding stats table */}
       <div className="bg-surface rounded-lg border border-white-8 p-4">
         <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
@@ -63,7 +80,7 @@ export default function DefenseLab() {
               <thead>
                 <tr className="border-b border-white-8">
                   {['Player', 'Pos', 'G', 'Inn', 'TC', 'PO', 'A', 'E', 'Fld%', 'DP'].map(h => (
-                    <th key={h} className="text-[9px] uppercase text-text-secondary pb-2 pr-3 whitespace-nowrap"
+                    <th key={h} className="text-[10px] uppercase text-text-secondary pb-2 pr-3 whitespace-nowrap font-semibold"
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       {h}
                     </th>
@@ -73,7 +90,7 @@ export default function DefenseLab() {
               <tbody>
                 {players.map((p, i) => (
                   <tr key={`${p.player_id}-${p.position}-${i}`}
-                    className="border-b border-white-8 last:border-b-0 hover:bg-surface-hover transition-colors">
+                    className={`border-b border-white-8 last:border-b-0 hover:bg-surface-hover transition-colors ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}>
                     <td className="py-1.5 pr-3 text-sm text-text-primary font-medium whitespace-nowrap">
                       {p.name}
                     </td>
@@ -103,8 +120,8 @@ export default function DefenseLab() {
                 ))}
 
                 {/* Team totals row */}
-                <tr className="border-t-2 border-white-8 font-bold">
-                  <td className="py-2 pr-3 text-sm text-text-primary">Team Total</td>
+                <tr className="border-t-2 border-white-8 font-bold bg-white/[0.03]">
+                  <td className="py-2.5 pr-3 text-sm text-text-primary font-bold">Team Total</td>
                   <td className="py-2 pr-3" />
                   <td className="py-2 pr-3" />
                   <td className="py-2 pr-3" />
