@@ -99,6 +99,11 @@ def _fetch_all() -> dict:
             home_starter = home_team.get("probablePitcher", {})
             away_starter = away_team.get("probablePitcher", {})
 
+            home_score = home_team.get("score")
+            away_score = away_team.get("score")
+            cubs_score = home_score if is_cubs_home else away_score
+            opp_score = away_score if is_cubs_home else home_score
+
             result["today"] = {
                 "game_pk": g.get("gamePk"),
                 "opponent": opp_name,
@@ -106,6 +111,8 @@ def _fetch_all() -> dict:
                 "status": g.get("status", {}).get("detailedState", "Scheduled"),
                 "game_time": g.get("gameDate", ""),
                 "day_night": g.get("dayNight", "night"),
+                "cubs_score": cubs_score,
+                "opp_score": opp_score,
                 "home_starter": {
                     "id": home_starter.get("id"),
                     "name": home_starter.get("fullName", "TBD"),

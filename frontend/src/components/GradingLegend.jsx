@@ -3,6 +3,12 @@ import { GRADE_ORDER, GRADES } from '../utils/grading'
 export default function GradingLegend() {
   return (
     <div className="flex flex-wrap items-center gap-2 md:gap-3 px-3 md:px-4 py-2 rounded-lg bg-surface border border-white-8">
+      <span
+        className="text-[9px] md:text-[10px] uppercase tracking-widest text-text-secondary font-semibold mr-1"
+        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+      >
+        Grades:
+      </span>
       {GRADE_ORDER.map((key) => {
         const g = GRADES[key]
         return (
