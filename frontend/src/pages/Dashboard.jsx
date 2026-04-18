@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApi } from '../hooks/useApi'
 import { useBenchmarks } from '../hooks/useBenchmarks'
@@ -155,7 +155,10 @@ function TopMetrics({ teamStats, record, getBenchmark }) {
 // Section: Divergence Alerts Panel
 // ---------------------------------------------------------------------------
 
-function DivergencePanel({ divergences, loading, ilCount }) {
+function DivergencePanel({ divergences, loading, injuries }) {
+  const [showIL, setShowIL] = useState(false)
+  const ilCount = injuries?.length || 0
+
   return (
     <div className="bg-surface rounded-lg border border-white-8 p-4 flex flex-col card-elevated">
       <div className="flex items-center gap-2 mb-3">
@@ -167,18 +170,38 @@ function DivergencePanel({ divergences, loading, ilCount }) {
           DIVERGENCE ALERTS
         </h3>
         {ilCount > 0 && (
-          <span
-            className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+          <button
+            onClick={() => setShowIL(!showIL)}
+            className="text-[8px] font-bold px-1.5 py-0.5 rounded cursor-pointer hover:brightness-125 transition-all"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               color: '#F87171',
               backgroundColor: 'rgba(248,113,113,0.15)',
             }}
           >
-            {ilCount} on IL
-          </span>
+            {ilCount} on IL {showIL ? '▾' : '▸'}
+          </button>
         )}
       </div>
+
+      {/* Expandable IL list */}
+      {showIL && injuries?.length > 0 && (
+        <div className="mb-3 p-2.5 rounded-lg border border-white-8 bg-navy/50">
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {injuries.map((inj, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-red-400" />
+                <span className="text-[10px] text-text-primary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  {inj.player_name}
+                </span>
+                <span className="text-[9px] text-text-secondary">
+                  {inj.injury_type}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <Shimmer lines={3} />
@@ -696,7 +719,7 @@ export default function Dashboard() {
         <DivergencePanel
           divergences={divergences}
           loading={divLoading}
-          ilCount={liveContext?.injuries?.length || 0}
+          injuries={liveContext?.injuries}
         />
         <PredictionsPanel
           upcomingPredictions={upcomingPredictions}
