@@ -210,7 +210,7 @@ export default function Editorial() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1">
         {TYPE_FILTERS.map(t => {
           const isActive = filter === t
           const meta = TYPE_META[t] || { label: 'ALL', color: '#60A5FA' }

@@ -72,7 +72,7 @@ export default function TheBooth() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] max-w-[900px] mx-auto">
+    <div className="flex flex-col h-[calc(100vh-140px)] md:h-[calc(100vh-120px)] max-w-[900px] mx-auto">
       {/* Header */}
       <div className="text-center py-4 md:py-6">
         <div className="flex items-center justify-center gap-2 mb-2">

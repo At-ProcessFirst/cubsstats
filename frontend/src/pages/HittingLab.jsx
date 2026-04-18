@@ -165,7 +165,7 @@ export default function HittingLab() {
               <h2 className="text-lg font-bold text-text-primary">{activeHitter.name}</h2>
               {overallGrade && <GradeBadge grade={overallGrade.label} size="md" />}
             </div>
-            <div className="flex items-center gap-4 mt-1">
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-1">
               <StatPill label="Pos" value={activeHitter.position || activeHitter.position_group} />
               <StatPill label="PA" value={activeHitter.pa} />
               <StatPill label="G" value={activeHitter.games} />
@@ -186,7 +186,7 @@ export default function HittingLab() {
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               PERFORMANCE VS MLB
             </h3>
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-3 md:gap-5">
               {HITTING_STATS.slice(0, 8).map(({ key, min, max, lib }) => {
                 const val = activeHitter[key]
                 if (val == null) return null
@@ -229,7 +229,7 @@ export default function HittingLab() {
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               PLATE DISCIPLINE & SPEED
             </h3>
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-3 md:gap-5">
               {HITTING_STATS.slice(8).map(({ key, min, max, lib }) => {
                 const val = activeHitter[key]
                 if (val == null) return null

@@ -88,7 +88,7 @@ export default function PredictionRow({
         {/* Favorability indicator */}
         {favor && (
           <span
-            className="text-[8px] md:text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider w-[62px] text-center"
+            className="hidden md:inline-block text-[8px] md:text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider w-[62px] text-center"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               color: favor.color,
@@ -99,8 +99,8 @@ export default function PredictionRow({
           </span>
         )}
 
-        {/* Home + Day/Night indicators */}
-        <div className="flex items-center gap-1">
+        {/* Home + Day/Night indicators — hidden on mobile to save space */}
+        <div className="hidden md:flex items-center gap-1">
           {isHome && (
             <span
               className="text-[8px] px-1.5 py-0.5 rounded bg-cubs-blue/20 text-accent-blue"
@@ -124,9 +124,9 @@ export default function PredictionRow({
         </div>
       </div>
 
-      {/* Starter matchup line */}
+      {/* Starter matchup line — hidden on mobile */}
       {hasStarters && (
-        <div className="ml-[55px] md:ml-[60px] mt-0.5">
+        <div className="hidden md:block ml-[60px] mt-0.5">
           <span
             className="text-[10px] text-text-secondary"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}

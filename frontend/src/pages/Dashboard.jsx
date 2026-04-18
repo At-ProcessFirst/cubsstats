@@ -187,7 +187,7 @@ function DivergencePanel({ divergences, loading, injuries }) {
       {/* Expandable IL list */}
       {showIL && injuries?.length > 0 && (
         <div className="mb-3 p-2.5 rounded-lg border border-white-8 bg-navy/50">
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
+          <div className="flex flex-wrap gap-x-2 md:gap-x-4 gap-y-1">
             {injuries.map((inj, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-red-400" />
@@ -353,14 +353,14 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
       ) : !sortedPitchers.length ? (
         <p className="text-sm text-text-secondary italic">No pitching data available</p>
       ) : (
-        <div>
+        <div className="overflow-x-auto">
           {/* Column headers */}
-          <div className="flex items-center gap-3 pb-1 mb-1 border-b border-white-8">
-            <span className="text-[9px] uppercase text-text-secondary w-[140px]"
+          <div className="flex items-center gap-3 pb-1 mb-1 border-b border-white-8 min-w-[380px]">
+            <span className="text-[9px] uppercase text-text-secondary w-[100px] md:w-[140px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Pitcher</span>
-            <span className="text-[9px] uppercase text-text-secondary w-[90px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[70px] md:w-[90px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>ERA</span>
-            <span className="text-[9px] uppercase text-text-secondary w-[90px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[70px] md:w-[90px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>True ERA</span>
             <span className="text-[9px] uppercase text-text-secondary flex-1"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Gap</span>
@@ -447,14 +447,14 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
       ) : !sortedHitters.length ? (
         <p className="text-sm text-text-secondary italic">No hitting data available</p>
       ) : (
-        <div>
+        <div className="overflow-x-auto">
           {/* Column headers */}
-          <div className="flex items-center gap-3 pb-1 mb-1 border-b border-white-8">
+          <div className="flex items-center gap-3 pb-1 mb-1 border-b border-white-8 min-w-[380px]">
             <span className="text-[9px] uppercase text-text-secondary w-[100px] md:w-[140px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>Hitter</span>
-            <span className="text-[9px] uppercase text-text-secondary w-[90px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[70px] md:w-[90px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>AVG</span>
-            <span className="text-[9px] uppercase text-text-secondary w-[90px]"
+            <span className="text-[9px] uppercase text-text-secondary w-[70px] md:w-[90px]"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>OBP</span>
             <span className="text-[9px] uppercase text-text-secondary flex-1"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>wOBA</span>

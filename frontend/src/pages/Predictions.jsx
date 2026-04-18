@@ -164,7 +164,7 @@ export default function Predictions() {
                 const pct = f.importance * 100
                 return (
                   <div key={f.name} className="flex items-center gap-2">
-                    <span className="text-[10px] text-text-primary w-[130px] truncate">{f.label}</span>
+                    <span className="text-[10px] text-text-primary w-[90px] md:w-[130px] truncate">{f.label}</span>
                     <div className="flex-1 h-[6px] rounded-full bg-surface-hover overflow-hidden">
                       <div className="h-full rounded-full bg-accent-blue transition-all"
                         style={{ width: `${Math.max(5, pct * 4)}%` }} />

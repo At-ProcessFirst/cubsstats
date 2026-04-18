@@ -189,7 +189,7 @@ export default function PitchingLab() {
               <h2 className="text-lg font-bold text-text-primary">{activePitcher.name}</h2>
               {overallGrade && <GradeBadge grade={overallGrade.label} size="md" />}
             </div>
-            <div className="flex items-center gap-4 mt-1">
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-1">
               <Stat label="Role" value={posGroup} />
               <Stat label="IP" value={activePitcher.ip?.toFixed(1)} />
               <Stat label="G" value={activePitcher.games} />
@@ -210,7 +210,7 @@ export default function PitchingLab() {
               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               PERFORMANCE VS MLB
             </h3>
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-3 md:gap-5">
               {PITCHING_STATS.map(({ key, min, max, lib }) => {
                 const val = activePitcher[key]
                 if (val == null) return null

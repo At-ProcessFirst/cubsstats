@@ -51,7 +51,7 @@ export default function DivergenceAlert({
       </div>
 
       {/* Stat comparison — player stat prominent, benchmark dimmer */}
-      <div className="flex items-center gap-3 mb-2">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
         {/* Player's stat — large and prominent */}
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-text-secondary">{stat1Name}:</span>
