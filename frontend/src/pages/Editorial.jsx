@@ -205,7 +205,7 @@ export default function Editorial() {
       <div>
         <h1 className="text-xl font-bold text-text-primary">Editorial</h1>
         <p className="text-sm text-text-secondary mt-1">
-          AI-generated analysis powered by Claude — every insight backed by specific stats and MLB benchmarks
+          Every insight backed by specific stats and MLB benchmarks
         </p>
       </div>
 
