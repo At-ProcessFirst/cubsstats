@@ -174,11 +174,15 @@ def _fetch_all() -> dict:
             "startDate": (today - timedelta(days=14)).isoformat(),
             "endDate": today.isoformat(),
         })
-        for t in data.get("transactions", [])[:10]:
+        txns = []
+        for t in data.get("transactions", []):
             desc = t.get("description", "")
             dt = (t.get("date") or "")[:10]
             if desc:
-                result["transactions"].append({"date": dt, "description": desc})
+                txns.append({"date": dt, "description": desc})
+        # Sort newest first, limit to 20
+        txns.sort(key=lambda x: x["date"], reverse=True)
+        result["transactions"] = txns[:20]
     except Exception as e:
         logger.debug(f"Transactions fetch failed: {e}")
 
