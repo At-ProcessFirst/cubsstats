@@ -37,12 +37,14 @@ export default function PercentileBar({ label, value, percentile, statName }) {
       </span>
 
       {/* Bar */}
-      <div className="flex-1 h-[5px] rounded-full bg-surface-hover overflow-hidden">
+      <div className="flex-1 h-[5px] rounded-full bg-surface-hover overflow-hidden relative">
+        {/* 50th percentile marker */}
+        <div className="absolute top-0 left-1/2 w-px h-full bg-text-secondary/30" />
         <div
-          className="h-full rounded-full transition-all duration-500"
+          className="h-full rounded-full animate-bar-fill"
           style={{
             width: `${pctWidth}%`,
-            backgroundColor: gradeInfo.color,
+            background: `linear-gradient(90deg, ${gradeInfo.color}, ${gradeInfo.color}66)`,
           }}
         />
       </div>

@@ -66,6 +66,7 @@ export default function BenchmarkGauge({
           style={{
             left: `calc(${playerPos}% - 5px)`,
             backgroundColor: gradeInfo.color,
+            boxShadow: `0 0 6px ${gradeInfo.color}88`,
           }}
         />
       </div>

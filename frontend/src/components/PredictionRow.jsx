@@ -64,10 +64,10 @@ export default function PredictionRow({
           <div className="flex-1 h-[6px] rounded-full bg-surface-hover overflow-hidden">
             {isModelReady && (
               <div
-                className="h-full rounded-full transition-all duration-500"
+                className="h-full rounded-full animate-bar-fill"
                 style={{
                   width: `${pct}%`,
-                  backgroundColor: getProbColor(pctNum),
+                  background: `linear-gradient(90deg, ${getProbColor(pctNum)}, ${getProbColor(pctNum)}55)`,
                 }}
               />
             )}

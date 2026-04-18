@@ -91,14 +91,19 @@ export default function TheBooth() {
       <div className="flex-1 overflow-y-auto px-2 md:px-4 pb-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-6">
-            <div className="w-20 h-20 rounded-full bg-surface border border-white-8 flex items-center justify-center">
-              <span className="text-4xl">🎙️</span>
+            {/* Animated concentric rings */}
+            <div className="relative flex items-center justify-center">
+              <div className="absolute w-28 h-28 rounded-full border border-accent-blue/20 ring-animate" />
+              <div className="absolute w-36 h-36 rounded-full border border-accent-blue/10 ring-animate-delay" />
+              <div className="w-20 h-20 rounded-full bg-surface border border-white-8 flex items-center justify-center card-elevated glow-blue">
+                <span className="text-4xl">🎙️</span>
+              </div>
             </div>
             <div className="text-center">
-              <p className="text-text-secondary text-sm mb-1">
+              <p className="text-text-primary text-base font-semibold mb-1">
                 Step up to the mic
               </p>
-              <p className="text-text-secondary text-[11px]">
+              <p className="text-text-secondary text-[12px]">
                 Ask about Cubs stats, player performance, team records, or matchup analysis
               </p>
             </div>
@@ -156,7 +161,7 @@ export default function TheBooth() {
           disabled={loading}
           className="flex-1 bg-navy border border-white-8 rounded-full px-4 py-2.5
                      text-sm text-text-primary placeholder-text-secondary
-                     focus:outline-none focus:border-cubs-blue transition-colors"
+                     focus:outline-none focus:border-accent-blue transition-all"
         />
         <button
           type="submit"

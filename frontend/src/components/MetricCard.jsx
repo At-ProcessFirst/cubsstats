@@ -31,7 +31,13 @@ export default function MetricCard({
   const delta = mlbAvg != null && value != null ? value - mlbAvg : null
 
   return (
-    <div className="bg-surface rounded-lg border border-white-8 p-3 md:p-4 flex flex-col gap-1.5 md:gap-2 hover:bg-surface-hover transition-colors">
+    <div
+      className="bg-surface rounded-lg border border-white-8 p-3 md:p-4 flex flex-col gap-1.5 md:gap-2 card-elevated hover:scale-[1.01] transition-all duration-200"
+      style={{
+        borderLeft: `3px solid ${gradeInfo.color}`,
+        background: `linear-gradient(135deg, ${gradeInfo.color}08, transparent 60%), #141B2D`,
+      }}
+    >
       {/* Stat label */}
       <span
         className="text-[9px] uppercase tracking-widest text-text-secondary"

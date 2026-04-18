@@ -26,10 +26,11 @@ export default function DivergenceAlert({
 
   return (
     <div
-      className="rounded-lg p-3 border transition-colors hover:brightness-110"
+      className="rounded-lg p-3 border transition-all hover:brightness-110 card-elevated"
       style={{
         backgroundColor: alertInfo.bg,
         borderColor: `${alertInfo.color}33`,
+        borderLeft: `3px solid ${alertInfo.color}`,
       }}
     >
       {/* Header: badge + player name */}

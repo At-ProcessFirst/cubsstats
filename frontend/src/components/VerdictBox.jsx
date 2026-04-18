@@ -19,10 +19,11 @@ export default function VerdictBox({ playerName, verdictText, verdictGrade }) {
 
   return (
     <div
-      className="rounded-lg p-4 border"
+      className="rounded-lg p-4 border card-elevated"
       style={{
         backgroundColor: 'rgba(14, 51, 134, 0.15)',
         borderColor: 'rgba(14, 51, 134, 0.30)',
+        borderLeft: `3px solid ${gradeInfo.color}`,
       }}
     >
       <h4

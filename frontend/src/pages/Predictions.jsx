@@ -49,6 +49,7 @@ export default function Predictions() {
           target="Win/Loss per game"
           status={gameModelStatus}
           error={predError}
+          accentColor="#60A5FA"
           baselines={[
             { label: 'Coin flip', value: '50.0%' },
             { label: 'Home advantage', value: '54.0%' },
@@ -61,6 +62,7 @@ export default function Predictions() {
           target="Next-10-game win total"
           status={trendModelStatus}
           error={trendError}
+          accentColor="#34D399"
           baselines={[
             { label: 'Pythagorean alone', value: '±2.1 wins' },
           ]}
@@ -71,6 +73,7 @@ export default function Predictions() {
           target="Regression probability"
           status={regModelStatus}
           error={regError}
+          accentColor="#FBBF24"
           baselines={[
             { label: 'Accuracy target', value: '7/10 correct in 30d' },
           ]}
@@ -235,13 +238,14 @@ export default function Predictions() {
   )
 }
 
-function ModelCard({ title, model, target, status, error, baselines = [] }) {
+function ModelCard({ title, model, target, status, error, baselines = [], accentColor = '#60A5FA' }) {
   const isReady = ['active', 'trained'].includes(status)
   const statusLabel = error ? 'ERROR' : 'ACTIVE'
   const statusColor = error ? '#F87171' : '#34D399'
 
   return (
-    <div className="bg-surface rounded-lg border border-white-8 p-4">
+    <div className="bg-surface rounded-lg border border-white-8 p-4 card-elevated"
+      style={{ borderTop: `3px solid ${accentColor}` }}>
       <div className="flex items-center gap-2 mb-2">
         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} />
         <span className="text-sm font-semibold text-text-primary">{title}</span>

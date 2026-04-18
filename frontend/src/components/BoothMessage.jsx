@@ -9,8 +9,13 @@ export default function BoothMessage({ role, content, data, sources }) {
         className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-3 ${
           isUser
             ? 'bg-cubs-blue text-white rounded-br-sm'
-            : 'bg-surface border border-white-8 text-text-primary rounded-bl-sm'
+            : 'border border-white-8 text-text-primary rounded-bl-sm'
         }`}
+        style={!isUser ? {
+          background: 'linear-gradient(135deg, #141B2D, #1A2340)',
+          borderLeft: '3px solid #60A5FA',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        } : undefined}
       >
         {/* Icon for booth messages */}
         {!isUser && (

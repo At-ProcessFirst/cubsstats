@@ -157,10 +157,11 @@ function TopMetrics({ teamStats, record, getBenchmark }) {
 
 function DivergencePanel({ divergences, loading, ilCount }) {
   return (
-    <div className="bg-surface rounded-lg border border-white-8 p-4 flex flex-col">
+    <div className="bg-surface rounded-lg border border-white-8 p-4 flex flex-col card-elevated">
       <div className="flex items-center gap-2 mb-3">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
         <h3
-          className="text-[11px] uppercase tracking-widest text-text-secondary"
+          className="text-[12px] uppercase tracking-widest text-text-secondary"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           DIVERGENCE ALERTS
@@ -220,14 +221,17 @@ function PredictionsPanel({ upcomingPredictions, loading }) {
   const games = upcomingPredictions?.games || []
 
   return (
-    <div className="bg-surface rounded-lg border border-white-8 p-4 flex flex-col">
+    <div className="bg-surface rounded-lg border border-white-8 p-4 flex flex-col card-elevated">
       <div className="flex items-center justify-between mb-3">
-        <h3
-          className="text-[11px] uppercase tracking-widest text-text-secondary"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          GAME PREDICTIONS
-        </h3>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-accent-blue" />
+          <h3
+            className="text-[12px] uppercase tracking-widest text-text-secondary"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            GAME PREDICTIONS
+          </h3>
+        </div>
         <span className="text-[9px] text-text-secondary italic">
           Updated weekly
         </span>
@@ -310,7 +314,7 @@ function PitchingSummary({ pitchers, getBenchmark, loading }) {
   }, [pitchers])
 
   return (
-    <div className="bg-surface rounded-lg border border-white-8 p-4">
+    <div className="bg-surface rounded-lg border border-white-8 p-4 card-elevated">
       <h3
         className="text-[11px] uppercase tracking-widest text-text-secondary mb-1"
         style={{ fontFamily: "'JetBrains Mono', monospace" }}
@@ -404,7 +408,7 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
   }, [hitters])
 
   return (
-    <div className="bg-surface rounded-lg border border-white-8 p-4">
+    <div className="bg-surface rounded-lg border border-white-8 p-4 card-elevated">
       <h3
         className="text-[11px] uppercase tracking-widest text-text-secondary mb-1"
         style={{ fontFamily: "'JetBrains Mono', monospace" }}
@@ -490,7 +494,7 @@ function DefenseModelPanel({ teamStats, modelStatus, loading, standings }) {
   ]
 
   return (
-    <div className="bg-surface rounded-lg border border-white-8 p-4">
+    <div className="bg-surface rounded-lg border border-white-8 p-4 card-elevated">
       <h3
         className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
         style={{ fontFamily: "'JetBrains Mono', monospace" }}

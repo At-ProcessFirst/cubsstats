@@ -73,3 +73,43 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Card elevation */
+.card-elevated {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.card-elevated:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Bar fill animation */
+@keyframes barFillIn {
+  from { width: 0%; }
+}
+.animate-bar-fill {
+  animation: barFillIn 0.8s ease-out forwards;
+}
+
+/* Glow effects */
+.glow-green { box-shadow: 0 0 8px rgba(52, 211, 153, 0.3); }
+.glow-blue { box-shadow: 0 0 8px rgba(96, 165, 250, 0.3); }
+
+/* Booth concentric rings */
+@keyframes ring-pulse {
+  0% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.15); opacity: 0.1; }
+  100% { transform: scale(1); opacity: 0.3; }
+}
+.ring-animate {
+  animation: ring-pulse 3s ease-in-out infinite;
+}
+.ring-animate-delay {
+  animation: ring-pulse 3s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+/* Focus glow for inputs */
+input:focus-visible {
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+  outline: none;
+}
