@@ -125,16 +125,24 @@ def _fetch_all() -> dict:
     except Exception as e:
         logger.debug(f"Schedule fetch failed: {e}")
 
-    # 3. Injuries / IL
+    # 3. Injuries / IL — pull from roster (depthChart includes IL players)
     try:
-        data = mlb_api_get("/injuries", {"teamId": 112})
-        for inj in data.get("injuries", []):
-            result["injuries"].append({
-                "player_name": inj.get("player", {}).get("fullName", "?"),
-                "description": inj.get("description", ""),
-                "injury_type": inj.get("injuryType", ""),
-                "date": (inj.get("date") or "")[:10],
-            })
+        data = mlb_api_get("/teams/112/roster", {
+            "rosterType": "depthChart",
+            "hydrate": "person",
+        })
+        for entry in data.get("roster", []):
+            status = entry.get("status", {})
+            status_code = status.get("code", "")
+            # D10=10-day IL, D15=15-day IL, D60=60-day IL
+            if status_code in ("D10", "D15", "D60"):
+                person = entry.get("person", {})
+                result["injuries"].append({
+                    "player_name": person.get("fullName", "?"),
+                    "description": status.get("description", "Injured List"),
+                    "injury_type": status.get("description", status_code),
+                    "date": "",
+                })
     except Exception as e:
         logger.debug(f"Injuries fetch failed: {e}")
 
