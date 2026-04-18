@@ -18,14 +18,20 @@ export default function Divergences() {
     return divergences.filter(d => d.alert_type === filter)
   }, [divergences, filter])
 
+  const injuries = liveContext?.injuries || []
+
   const counts = useMemo(() => {
     if (!divergences?.length) return {}
     const c = { ALL: divergences.length }
     for (const d of divergences) {
       c[d.alert_type] = (c[d.alert_type] || 0) + 1
     }
+    // Show IL count on INJURY tab if no stat-based injury alerts
+    if (!c.INJURY && injuries.length > 0) {
+      c.INJURY = injuries.length
+    }
     return c
-  }, [divergences])
+  }, [divergences, injuries])
 
   return (
     <div className="flex flex-col gap-4">
@@ -121,6 +127,32 @@ export default function Divergences() {
         </div>
       )}
 
+      {/* IL Roster — shown when INJURY filter is active */}
+      {filter === 'INJURY' && injuries.length > 0 && (
+        <div className="bg-surface rounded-lg border border-white-8 p-4 card-elevated"
+          style={{ borderLeft: '3px solid #F472B6' }}>
+          <h3 className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            CUBS INJURED LIST ({injuries.length} players)
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {injuries.map((inj, i) => (
+              <div key={i} className="flex items-center gap-2 py-1.5 px-3 rounded-lg"
+                style={{ backgroundColor: 'rgba(244,114,182,0.08)' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-pink-400 shrink-0" />
+                <span className="text-[12px] text-text-primary font-medium"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  {inj.player_name}
+                </span>
+                <span className="text-[10px] text-text-secondary ml-auto shrink-0">
+                  {inj.injury_type}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Alert feed */}
       {loading ? (
         <div className="flex flex-col gap-3">
@@ -128,7 +160,7 @@ export default function Divergences() {
             <div key={i} className="h-24 rounded-lg bg-surface-hover animate-pulse" />
           ))}
         </div>
-      ) : !filtered.length ? (
+      ) : !filtered.length && !(filter === 'INJURY' && injuries.length > 0) ? (
         <div className="bg-surface rounded-lg border border-white-8 p-8 text-center">
           <p className="text-lg text-text-secondary">
             {divergences?.length
