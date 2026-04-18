@@ -93,155 +93,28 @@ def _call_claude(system: str, messages: list, max_tokens: int = 1500) -> Optiona
         return None
 
 
-def _get_live_context() -> str:
-    """Pre-fetch live Cubs data from MLB Stats API for Booth context."""
-    from datetime import datetime, timezone, timedelta
-    from app.services.ingestion import mlb_api_get
+def _get_cached_live_context() -> str:
+    """Get live context as formatted text for Claude, using shared cached service."""
+    from app.services.live_context import get_live_context_data, format_for_booth
 
-    # Use Central Time for "today" — Cubs are a Chicago team, Render runs UTC
-    ct = timezone(timedelta(hours=-5))  # CDT (Central Daylight Time)
-    today = datetime.now(ct).date()
+    data = get_live_context_data()
 
-    context_parts = []
-
-    # 1. Active roster
+    # Add roster (Booth-specific — not in the shared REST endpoint)
+    parts = []
     try:
+        from datetime import datetime, timezone, timedelta
         from app.services.ingestion import pull_cubs_roster
+        ct = timezone(timedelta(hours=-5))
+        today = datetime.now(ct).date()
         roster = pull_cubs_roster(today.year)
         if roster:
             roster_text = "\n".join(f"- {p['name']} ({p['position']})" for p in roster)
-            context_parts.append(f"## CURRENT ACTIVE CUBS ROSTER ({today.isoformat()})\n{roster_text}")
+            parts.append(f"## CURRENT ACTIVE CUBS ROSTER ({today.isoformat()})\n{roster_text}")
     except Exception as e:
         logger.debug(f"Roster fetch failed: {e}")
 
-    # 2. Today's schedule
-    try:
-        from app.services.ingestion import fetch_schedule
-        games = fetch_schedule(today, today, team_id=112)
-        if games:
-            for g in games:
-                home = g.get("teams", {}).get("home", {}).get("team", {}).get("name", "")
-                away = g.get("teams", {}).get("away", {}).get("team", {}).get("name", "")
-                status = g.get("status", {}).get("detailedState", "Scheduled")
-                game_time = g.get("gameDate", "")
-                context_parts.append(
-                    f"## TODAY'S GAME ({today.isoformat()})\n"
-                    f"{away} at {home} — {status}\n"
-                    f"Game time: {game_time}"
-                )
-        else:
-            context_parts.append(f"## TODAY ({today.isoformat()})\nNo Cubs game scheduled today.")
-
-        # Fetch lineups if game exists
-        if games:
-            try:
-                lineup_data = mlb_api_get("/schedule", {
-                    "teamId": 112, "date": today.isoformat(), "sportId": 1, "hydrate": "lineups",
-                })
-                for ld in lineup_data.get("dates", []):
-                    for lg in ld.get("games", []):
-                        lineups = lg.get("lineups", {})
-                        cubs_home = lg.get("teams", {}).get("home", {}).get("team", {}).get("name", "")
-                        is_cubs_home = "Cubs" in cubs_home
-                        cubs_side = "homePlayers" if is_cubs_home else "awayPlayers"
-                        players = lineups.get(cubs_side, [])
-                        if players:
-                            lineup_text = "\n".join(
-                                f"{i+1}. {p.get('fullName', '?')} ({p.get('primaryPosition', {}).get('abbreviation', '?')})"
-                                for i, p in enumerate(players[:9])
-                            )
-                            context_parts.append(f"## CUBS BATTING ORDER (today's game)\n{lineup_text}")
-            except Exception as e:
-                logger.debug(f"Lineup fetch failed: {e}")
-    except Exception as e:
-        logger.debug(f"Schedule fetch failed: {e}")
-
-    # 3. NL Central standings
-    try:
-        data = mlb_api_get("/standings", {
-            "leagueId": "104", "season": today.year,
-            "standingsTypes": "regularSeason", "hydrate": "team",
-        })
-        nl_central = []
-        for rec in data.get("records", []):
-            div = rec.get("division", {}).get("name", "")
-            if "Central" in div:
-                for tr in rec.get("teamRecords", []):
-                    team_name = tr.get("team", {}).get("name", "")
-                    w = tr.get("wins", 0)
-                    l = tr.get("losses", 0)
-                    gb = tr.get("gamesBack", "-")
-                    nl_central.append(f"- {team_name}: {w}-{l} (GB: {gb})")
-        if nl_central:
-            context_parts.append(f"## NL CENTRAL STANDINGS ({today.isoformat()})\n" + "\n".join(nl_central))
-    except Exception as e:
-        logger.debug(f"Standings fetch failed: {e}")
-
-    # 4. Injuries / IL
-    try:
-        data = mlb_api_get("/injuries", {"teamId": 112})
-        injuries = []
-        for inj in data.get("injuries", []):
-            name = inj.get("player", {}).get("fullName", "?")
-            desc = inj.get("description", "")
-            il_date = inj.get("date", "")[:10]
-            il_type = inj.get("injuryType", "")
-            injuries.append(f"- {name}: {desc} ({il_type}, since {il_date})")
-        if injuries:
-            context_parts.append("## CUBS INJURED LIST (current)\n" + "\n".join(injuries))
-    except Exception as e:
-        logger.debug(f"Injuries fetch failed: {e}")
-
-    # 5. Team leaders (batting + pitching)
-    try:
-        for cat, label in [
-            ("homeRuns", "HR"), ("battingAverage", "AVG"),
-            ("earnedRunAverage", "ERA"), ("wins", "W"),
-        ]:
-            leaders_data = mlb_api_get(f"/teams/112/leaders", {
-                "leaderCategories": cat, "season": today.year, "limit": 5,
-            })
-            rows = []
-            for lg in leaders_data.get("teamLeaders", []):
-                for leader in lg.get("leaders", []):
-                    pname = leader.get("person", {}).get("fullName", "?")
-                    val = leader.get("value", "?")
-                    rows.append(f"- {pname}: {val}")
-            if rows:
-                context_parts.append(f"## CUBS LEADERS — {label} ({today.year})\n" + "\n".join(rows))
-    except Exception as e:
-        logger.debug(f"Team leaders fetch failed: {e}")
-
-    # 6. Recent transactions
-    try:
-        data = mlb_api_get("/transactions", {
-            "teamId": 112, "startDate": (today - timedelta(days=14)).isoformat(),
-            "endDate": today.isoformat(),
-        })
-        txns = []
-        for t in data.get("transactions", [])[:10]:
-            desc = t.get("description", "")
-            dt = t.get("date", "")[:10]
-            if desc:
-                txns.append(f"- {dt}: {desc}")
-        if txns:
-            context_parts.append("## RECENT CUBS TRANSACTIONS (last 14 days)\n" + "\n".join(txns))
-    except Exception as e:
-        logger.debug(f"Transactions fetch failed: {e}")
-
-    return "\n\n".join(context_parts)
-
-
-# Cache live context for 5 minutes to avoid hitting MLB API on every question
-_live_context_cache = {"text": "", "timestamp": 0}
-
-
-def _get_cached_live_context() -> str:
-    now = time.time()
-    if now - _live_context_cache["timestamp"] > 300:  # 5 minute cache
-        _live_context_cache["text"] = _get_live_context()
-        _live_context_cache["timestamp"] = now
-    return _live_context_cache["text"]
+    parts.append(format_for_booth(data))
+    return "\n\n".join(parts)
 
 
 def ask(question: str, db: Session, conversation_history: list = None) -> dict:

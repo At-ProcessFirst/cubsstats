@@ -7,6 +7,9 @@ export default function PredictionRow({
   isHome,
   winProbability,
   status,
+  cubsStarter,
+  oppStarter,
+  dayNight,
 }) {
   const isModelReady = status !== 'model_not_trained' && winProbability != null
   const pct = isModelReady ? (winProbability * 100).toFixed(0) : null
@@ -30,77 +33,107 @@ export default function PredictionRow({
 
   const favor = getFavorLabel(pctNum)
 
-  return (
-    <div className="flex items-center gap-2 md:gap-3 py-2.5 border-b border-white-8 last:border-b-0">
-      {/* Date */}
-      <span
-        className="text-[10px] text-text-secondary w-[55px] md:w-[60px]"
-        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-      >
-        {date}
-      </span>
+  const hasStarters = cubsStarter && oppStarter && cubsStarter !== 'TBD' && oppStarter !== 'TBD'
 
-      {/* Matchup */}
-      <div className="flex items-center gap-1 w-[75px] md:w-[90px]">
-        <span className="text-[10px] text-text-secondary">
-          {isHome ? 'vs' : '@'}
-        </span>
+  return (
+    <div className="py-2.5 border-b border-white-8 last:border-b-0">
+      <div className="flex items-center gap-2 md:gap-3">
+        {/* Date */}
         <span
-          className="text-sm font-semibold text-text-primary"
+          className="text-[10px] text-text-secondary w-[55px] md:w-[60px]"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
-          {opponent}
+          {date}
         </span>
-      </div>
 
-      {/* Win probability bar */}
-      <div className="flex-1 flex items-center gap-2">
-        <div className="flex-1 h-[6px] rounded-full bg-surface-hover overflow-hidden">
-          {isModelReady && (
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${pct}%`,
-                backgroundColor: getProbColor(pctNum),
-              }}
-            />
-          )}
+        {/* Matchup */}
+        <div className="flex items-center gap-1 w-[75px] md:w-[90px]">
+          <span className="text-[10px] text-text-secondary">
+            {isHome ? 'vs' : '@'}
+          </span>
+          <span
+            className="text-sm font-semibold text-text-primary"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {opponent}
+          </span>
         </div>
 
-        {/* Cubs win probability — explicitly labeled */}
-        <span
-          className="text-[12px] font-bold w-[65px] text-right"
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            color: isModelReady ? getProbColor(pctNum) : '#8892A8',
-          }}
-        >
-          {isModelReady ? `Cubs ${pct}%` : '—'}
-        </span>
+        {/* Win probability bar */}
+        <div className="flex-1 flex items-center gap-2">
+          <div className="flex-1 h-[6px] rounded-full bg-surface-hover overflow-hidden">
+            {isModelReady && (
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${pct}%`,
+                  backgroundColor: getProbColor(pctNum),
+                }}
+              />
+            )}
+          </div>
+
+          {/* Cubs win probability — explicitly labeled */}
+          <span
+            className="text-[12px] font-bold w-[65px] text-right"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              color: isModelReady ? getProbColor(pctNum) : '#8892A8',
+            }}
+          >
+            {isModelReady ? `Cubs ${pct}%` : '—'}
+          </span>
+        </div>
+
+        {/* Favorability indicator */}
+        {favor && (
+          <span
+            className="text-[7px] md:text-[8px] px-1.5 py-0.5 rounded font-bold tracking-wider w-[62px] text-center"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              color: favor.color,
+              backgroundColor: `${favor.color}18`,
+            }}
+          >
+            {favor.text}
+          </span>
+        )}
+
+        {/* Home + Day/Night indicators */}
+        <div className="flex items-center gap-1">
+          {isHome && (
+            <span
+              className="text-[8px] px-1.5 py-0.5 rounded bg-cubs-blue/20 text-accent-blue"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              HOME
+            </span>
+          )}
+          {dayNight && (
+            <span
+              className="text-[8px] px-1 py-0.5 rounded text-text-secondary"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                backgroundColor: dayNight === 'day' ? 'rgba(251,191,36,0.12)' : 'rgba(136,146,168,0.12)',
+                color: dayNight === 'day' ? '#FBBF24' : '#8892A8',
+              }}
+            >
+              {dayNight === 'day' ? 'DAY' : 'NIGHT'}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Favorability indicator */}
-      {favor && (
-        <span
-          className="text-[7px] md:text-[8px] px-1.5 py-0.5 rounded font-bold tracking-wider w-[62px] text-center"
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            color: favor.color,
-            backgroundColor: `${favor.color}18`,
-          }}
-        >
-          {favor.text}
-        </span>
-      )}
-
-      {/* Home indicator */}
-      {isHome && (
-        <span
-          className="text-[8px] px-1.5 py-0.5 rounded bg-cubs-blue/20 text-accent-blue"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          HOME
-        </span>
+      {/* Starter matchup line */}
+      {hasStarters && (
+        <div className="ml-[55px] md:ml-[60px] mt-0.5">
+          <span
+            className="text-[9px] text-text-secondary"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {cubsStarter} vs {oppStarter}
+          </span>
+        </div>
       )}
     </div>
   )

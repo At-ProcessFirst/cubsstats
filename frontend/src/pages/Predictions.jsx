@@ -23,6 +23,7 @@ export default function Predictions() {
   const { data: trendData } = useApi('/team/win-trend')
   const { data: record } = useApi('/team/record')
   const { data: featureData } = useApi('/predictions/feature-importance')
+  const { data: liveContext } = useApi('/team/live-context')
 
   const gameModelStatus = predictions?.status || 'model_not_trained'
   const trendModelStatus = winTrend?.status || 'model_not_trained'
@@ -136,7 +137,9 @@ export default function Predictions() {
             upcomingData.games.map(g => (
               <PredictionRow key={g.game_pk}
                 opponent={g.opponent} date={g.date} isHome={g.is_home}
-                winProbability={g.win_probability} status="active" />
+                winProbability={g.win_probability} status="active"
+                cubsStarter={g.cubs_starter} oppStarter={g.opp_starter}
+                dayNight={g.day_night} />
             ))
           )}
         </div>
@@ -171,6 +174,26 @@ export default function Predictions() {
                 )
               })}
           </div>
+
+          {/* Cubs Leaders */}
+          {liveContext?.team_leaders && Object.keys(liveContext.team_leaders).length > 0 && (
+            <div className="mt-4 pt-3 border-t border-white-8">
+              <h4 className="text-[9px] uppercase text-text-secondary tracking-wide mb-2"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Cubs Leaders
+              </h4>
+              {Object.entries(liveContext.team_leaders).map(([stat, leaders]) => (
+                leaders[0] && (
+                  <div key={stat} className="flex items-center justify-between py-0.5">
+                    <span className="text-[10px] text-text-secondary">{stat}</span>
+                    <span className="text-[10px] text-text-primary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      {leaders[0].name.split(' ').pop()} {leaders[0].value}
+                    </span>
+                  </div>
+                )
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

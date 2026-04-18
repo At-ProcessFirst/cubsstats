@@ -5,6 +5,7 @@ import { useBenchmarks } from '../hooks/useBenchmarks'
 import { formatStat, formatRecord, formatDelta, ordinal, STAT_EXPLANATIONS } from '../utils/formatting'
 import { gradeFromPercentile, LOWER_IS_BETTER } from '../utils/grading'
 import GradingLegend from '../components/GradingLegend'
+import LiveTicker from '../components/LiveTicker'
 import MetricCard from '../components/MetricCard'
 import WinTrendChart from '../components/WinTrendChart'
 import DivergenceAlert from '../components/DivergenceAlert'
@@ -154,15 +155,29 @@ function TopMetrics({ teamStats, record, getBenchmark }) {
 // Section: Divergence Alerts Panel
 // ---------------------------------------------------------------------------
 
-function DivergencePanel({ divergences, loading }) {
+function DivergencePanel({ divergences, loading, ilCount }) {
   return (
     <div className="bg-surface rounded-lg border border-white-8 p-4 flex flex-col">
-      <h3
-        className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
-        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-      >
-        DIVERGENCE ALERTS
-      </h3>
+      <div className="flex items-center gap-2 mb-3">
+        <h3
+          className="text-[11px] uppercase tracking-widest text-text-secondary"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          DIVERGENCE ALERTS
+        </h3>
+        {ilCount > 0 && (
+          <span
+            className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              color: '#F87171',
+              backgroundColor: 'rgba(248,113,113,0.15)',
+            }}
+          >
+            {ilCount} on IL
+          </span>
+        )}
+      </div>
 
       {loading ? (
         <Shimmer lines={3} />
@@ -250,6 +265,9 @@ function PredictionsPanel({ upcomingPredictions, loading }) {
               isHome={g.is_home}
               winProbability={g.win_probability}
               status="active"
+              cubsStarter={g.cubs_starter}
+              oppStarter={g.opp_starter}
+              dayNight={g.day_night}
             />
           ))}
         </div>
@@ -461,7 +479,7 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
 // Section: Defense & Model Quality
 // ---------------------------------------------------------------------------
 
-function DefenseModelPanel({ teamStats, modelStatus, loading }) {
+function DefenseModelPanel({ teamStats, modelStatus, loading, standings }) {
   const defenseStats = [
     { label: 'Team ERA', value: teamStats?.team_era, statName: 'era' },
     { label: 'True Pitching Quality', value: teamStats?.team_fip, statName: 'fip' },
@@ -526,6 +544,39 @@ function DefenseModelPanel({ teamStats, modelStatus, loading }) {
               status={modelStatus?.regression_detection?.status || 'model_not_trained'}
             />
           </div>
+
+          {/* NL Central Standings */}
+          {standings?.length > 0 && (
+            <div className="pt-3 mt-3 border-t border-white-8">
+              <h4 className="text-[9px] uppercase text-text-secondary tracking-wide mb-2"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                NL Central
+              </h4>
+              {standings.map((s) => (
+                <div
+                  key={s.abbrev}
+                  className="flex items-center justify-between py-0.5"
+                  style={s.abbrev === 'CHC' ? { borderLeft: '2px solid #0E3386', paddingLeft: 6 } : { paddingLeft: 8 }}
+                >
+                  <span
+                    className="text-[10px] text-text-primary"
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontWeight: s.abbrev === 'CHC' ? 700 : 400,
+                    }}
+                  >
+                    {s.abbrev}
+                  </span>
+                  <span className="text-[10px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {s.wins}-{s.losses}
+                  </span>
+                  <span className="text-[10px] text-text-secondary w-[30px] text-right" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {s.games_back === '-' ? '--' : s.games_back}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -624,6 +675,7 @@ export default function Dashboard() {
   const { data: cubsHitting, loading: hitLoading } = useApi('/hitting/cubs/enriched')
   const { getBenchmark, loading: benchLoading } = useBenchmarks()
   const { data: modelStatus } = useApi('/predictions/model-status')
+  const { data: liveContext } = useApi('/team/live-context')
 
   const isLoading = teamLoading || recordLoading || benchLoading
 
@@ -662,6 +714,9 @@ export default function Dashboard() {
       {/* 1. Grading Legend */}
       <GradingLegend />
 
+      {/* 1.5. Live Ticker */}
+      <LiveTicker liveContext={liveContext} />
+
       {/* 2. Top Metrics Row (5-col) */}
       <TopMetrics
         teamStats={teamStats}
@@ -680,6 +735,7 @@ export default function Dashboard() {
         <DivergencePanel
           divergences={divergences}
           loading={divLoading}
+          ilCount={liveContext?.injuries?.length || 0}
         />
         <PredictionsPanel
           upcomingPredictions={upcomingPredictions}
@@ -703,6 +759,7 @@ export default function Dashboard() {
           teamStats={teamStats}
           modelStatus={modelStatus}
           loading={teamLoading}
+          standings={liveContext?.standings}
         />
       </div>
 

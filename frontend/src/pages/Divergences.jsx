@@ -8,7 +8,9 @@ const FILTER_OPTIONS = ['ALL', 'BREAKOUT', 'REGRESS', 'WATCH', 'INJURY']
 
 export default function Divergences() {
   const { data: divergences, loading, error } = useApi('/divergences/enriched?limit=50')
+  const { data: liveContext } = useApi('/team/live-context')
   const [filter, setFilter] = useState('ALL')
+  const [showAllTxns, setShowAllTxns] = useState(false)
 
   const filtered = useMemo(() => {
     if (!divergences?.length) return []
@@ -87,6 +89,37 @@ export default function Divergences() {
             text="Velocity drop or sudden stat change consistent with injury risk. Track closely." />
         </div>
       </div>
+
+      {/* Recent Transactions */}
+      {liveContext?.transactions?.length > 0 && (
+        <div className="bg-surface rounded-lg border border-white-8 p-4">
+          <button
+            onClick={() => setShowAllTxns(!showAllTxns)}
+            className="flex items-center justify-between w-full"
+          >
+            <h3 className="text-[11px] uppercase tracking-widest text-text-secondary"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              RECENT TRANSACTIONS ({liveContext.transactions.length})
+            </h3>
+            <span className="text-[10px] text-accent-blue">
+              {showAllTxns ? 'Show less' : 'Show all'}
+            </span>
+          </button>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {(showAllTxns ? liveContext.transactions : liveContext.transactions.slice(0, 5)).map((t, i) => (
+              <div key={i} className="flex gap-2 py-1 border-b border-white-8 last:border-b-0">
+                <span className="text-[10px] text-text-secondary shrink-0 w-[70px]"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  {t.date}
+                </span>
+                <span className="text-[11px] text-text-primary leading-snug">
+                  {t.description}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Alert feed */}
       {loading ? (

@@ -162,6 +162,13 @@ def get_win_trend(
     return trend
 
 
+@router.get("/live-context")
+def get_live_context():
+    """Get live Cubs data from MLB Stats API (standings, injuries, leaders, transactions, today's game)."""
+    from app.services.live_context import get_live_context_data
+    return get_live_context_data()
+
+
 @router.get("/upcoming")
 def get_upcoming_games(
     limit: int = Query(7, ge=1, le=30),

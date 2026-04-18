@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
 
-from app.models.database import get_db, Game, TeamSeasonStats
+from app.models.database import get_db, Game, TeamSeasonStats, Player
 from app.services.ml_engine import (
     predict_game_outcome, predict_win_trend,
     detect_regression_flags, get_model_status,
@@ -161,12 +161,29 @@ def get_upcoming_predictions(
                 prediction = predict_game_outcome(features)
                 win_prob = prediction.get("win_probability")
 
+            # Look up starter names
+            cubs_starter_name = "TBD"
+            opp_starter_name = "TBD"
+            cubs_starter_id = game.home_starter_id if is_home else game.away_starter_id
+            opp_starter_id = game.away_starter_id if is_home else game.home_starter_id
+            if cubs_starter_id:
+                p = db.query(Player).filter(Player.mlb_id == cubs_starter_id).first()
+                if p:
+                    cubs_starter_name = p.name
+            if opp_starter_id:
+                p = db.query(Player).filter(Player.mlb_id == opp_starter_id).first()
+                if p:
+                    opp_starter_name = p.name
+
             results.append({
                 "game_pk": game.game_pk,
                 "date": game.game_date.isoformat(),
                 "opponent": opp,
                 "is_home": is_home,
                 "win_probability": win_prob,
+                "cubs_starter": cubs_starter_name,
+                "opp_starter": opp_starter_name,
+                "day_night": game.day_night or "night",
             })
         except Exception as e:
             # Don't let one game failure kill the whole list
