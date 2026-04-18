@@ -208,7 +208,7 @@ def fetch_schedule(start_date: date, end_date: date, team_id: int = None,
         "startDate": start_date.isoformat(),
         "endDate": end_date.isoformat(),
         "sportId": 1,
-        "hydrate": "team,linescore",
+        "hydrate": "team,linescore,probablePitcher",
         "gameType": game_type,
     }
     if team_id:
@@ -546,6 +546,8 @@ def parse_mlb_api_games(games_data: list[dict], db: Session) -> list[Game]:
             cubs_home=cubs_home if is_cubs_game else None,
             cubs_won=cubs_won, status=status,
             day_night=g.get("dayNight"),
+            home_starter_id=g.get("teams", {}).get("home", {}).get("probablePitcher", {}).get("id"),
+            away_starter_id=g.get("teams", {}).get("away", {}).get("probablePitcher", {}).get("id"),
         )
         parsed.append(game)
     return parsed
@@ -563,6 +565,10 @@ def upsert_games(games: list[Game], db: Session) -> int:
                 existing.cubs_won = game.cubs_won
                 if game.day_night:
                     existing.day_night = game.day_night
+                if game.home_starter_id:
+                    existing.home_starter_id = game.home_starter_id
+                if game.away_starter_id:
+                    existing.away_starter_id = game.away_starter_id
             else:
                 db.add(game)
                 count += 1

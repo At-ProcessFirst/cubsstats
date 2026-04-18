@@ -164,6 +164,8 @@ class Game(Base):
     cubs_won = Column(Boolean, nullable=True)
     status = Column(String(20), default="scheduled")  # scheduled, live, final
     day_night = Column(String(10), nullable=True)  # "day" or "night"
+    home_starter_id = Column(Integer, nullable=True)
+    away_starter_id = Column(Integer, nullable=True)
     statcast_loaded = Column(Boolean, default=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 

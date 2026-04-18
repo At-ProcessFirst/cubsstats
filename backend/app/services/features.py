@@ -161,64 +161,34 @@ def _bullpen_innings_last_3d(game_date, season: int, db: Session) -> float:
 def _get_starter_era(game_pk: int, team_abbrev: str, season: int, db: Session) -> float:
     """Get the starting pitcher's ERA for a specific game.
 
-    For historical (final) games: DB-only lookup via pitcher_game_stats + season stats.
-    For upcoming games: fetches probable pitcher from MLB API.
+    Uses Game.home_starter_id / away_starter_id (stored during ingestion) to look up
+    the starter's season ERA from pitcher_season_stats (league-wide data).
+    No API calls — fully DB-driven for both historical and upcoming games.
     Falls back to 4.00 if no starter data available.
     """
-    # Historical: find the pitcher with the most IP in this game for this team
-    starters = db.query(PitcherGameStats).filter(
-        PitcherGameStats.game_pk == game_pk,
-        PitcherGameStats.season == season,
-    ).order_by(PitcherGameStats.ip.desc()).all()
-
-    if starters:
-        # Use PitcherSeasonStats.team (per-season) instead of Player.team (current only)
-        team_pids = set(
-            ps.player_id for ps in db.query(PitcherSeasonStats.player_id).filter(
-                PitcherSeasonStats.team == team_abbrev,
-                PitcherSeasonStats.season == season,
-            ).all()
-        )
-        for s in starters:
-            if s.player_id in team_pids and s.ip and s.ip >= 3.0:
-                season_stats = db.query(PitcherSeasonStats).filter(
-                    PitcherSeasonStats.player_id == s.player_id,
-                    PitcherSeasonStats.season == season,
-                ).first()
-                if season_stats and season_stats.era is not None:
-                    return season_stats.era
-
-    # Only call API for upcoming/scheduled games (not during training)
     game = db.query(Game).filter(Game.game_pk == game_pk).first()
-    if game and game.status != "final":
-        try:
-            from app.services.ingestion import mlb_api_get
-            game_data = mlb_api_get("/schedule", {
-                "gamePk": game_pk, "hydrate": "probablePitcher",
-            })
-            for d in game_data.get("dates", []):
-                for g in d.get("games", []):
-                    for side in ["home", "away"]:
-                        team_name = g.get("teams", {}).get(side, {}).get("team", {}).get("name", "")
-                        if team_abbrev == "CHC" and "Cubs" in team_name:
-                            pp = g.get("teams", {}).get(side, {}).get("probablePitcher", {})
-                        elif team_abbrev != "CHC":
-                            if "Cubs" not in team_name:
-                                pp = g.get("teams", {}).get(side, {}).get("probablePitcher", {})
-                            else:
-                                continue
-                        else:
-                            continue
-                        pid = pp.get("id")
-                        if pid:
-                            ps = db.query(PitcherSeasonStats).filter(
-                                PitcherSeasonStats.player_id == pid,
-                                PitcherSeasonStats.season == season,
-                            ).first()
-                            if ps and ps.era is not None:
-                                return ps.era
-        except Exception:
-            pass
+    if not game:
+        return 4.00
+
+    # Determine which starter ID to use based on team
+    if team_abbrev == game.home_team:
+        starter_id = game.home_starter_id
+    elif team_abbrev == game.away_team:
+        starter_id = game.away_starter_id
+    else:
+        # Team abbreviation matches neither side — try Cubs-specific logic
+        if team_abbrev == "CHC":
+            starter_id = game.home_starter_id if game.cubs_home else game.away_starter_id
+        else:
+            starter_id = game.away_starter_id if game.cubs_home else game.home_starter_id
+
+    if starter_id:
+        ps = db.query(PitcherSeasonStats).filter(
+            PitcherSeasonStats.player_id == starter_id,
+            PitcherSeasonStats.season == season,
+        ).first()
+        if ps and ps.era is not None:
+            return ps.era
 
     return 4.00
 
