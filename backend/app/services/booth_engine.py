@@ -177,7 +177,42 @@ def _get_live_context() -> str:
     except Exception as e:
         logger.debug(f"Standings fetch failed: {e}")
 
-    # 4. Recent transactions
+    # 4. Injuries / IL
+    try:
+        data = mlb_api_get("/injuries", {"teamId": 112})
+        injuries = []
+        for inj in data.get("injuries", []):
+            name = inj.get("player", {}).get("fullName", "?")
+            desc = inj.get("description", "")
+            il_date = inj.get("date", "")[:10]
+            il_type = inj.get("injuryType", "")
+            injuries.append(f"- {name}: {desc} ({il_type}, since {il_date})")
+        if injuries:
+            context_parts.append("## CUBS INJURED LIST (current)\n" + "\n".join(injuries))
+    except Exception as e:
+        logger.debug(f"Injuries fetch failed: {e}")
+
+    # 5. Team leaders (batting + pitching)
+    try:
+        for cat, label in [
+            ("homeRuns", "HR"), ("battingAverage", "AVG"),
+            ("earnedRunAverage", "ERA"), ("wins", "W"),
+        ]:
+            leaders_data = mlb_api_get(f"/teams/112/leaders", {
+                "leaderCategories": cat, "season": today.year, "limit": 5,
+            })
+            rows = []
+            for lg in leaders_data.get("teamLeaders", []):
+                for leader in lg.get("leaders", []):
+                    pname = leader.get("person", {}).get("fullName", "?")
+                    val = leader.get("value", "?")
+                    rows.append(f"- {pname}: {val}")
+            if rows:
+                context_parts.append(f"## CUBS LEADERS — {label} ({today.year})\n" + "\n".join(rows))
+    except Exception as e:
+        logger.debug(f"Team leaders fetch failed: {e}")
+
+    # 6. Recent transactions
     try:
         data = mlb_api_get("/transactions", {
             "teamId": 112, "startDate": (today - timedelta(days=14)).isoformat(),

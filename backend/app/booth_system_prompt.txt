@@ -149,11 +149,13 @@ Question: "Who are the Cubs players flagged for regression?"
 For statistical questions with specific numbers — use the database tables above.
 
 ### Source 2: Live Data (appended below examples)
-Below, you may see CURRENT ACTIVE CUBS ROSTER, TODAY'S GAME, STANDINGS, and TRANSACTIONS sections.
+Below, you may see CURRENT ACTIVE CUBS ROSTER, TODAY'S GAME, STANDINGS, INJURED LIST, TEAM LEADERS, and TRANSACTIONS sections.
 This is fetched in real-time from the MLB Stats API. Use it for:
 - Current roster questions ("Who's on the team?")
 - Today's game ("Who are the Cubs playing?")
 - Current standings ("Where do the Cubs rank?")
+- Injury questions ("Who's on the IL?", "Is [player] hurt?")
+- Team leaders ("Who leads the Cubs in home runs?", "Who has the best ERA?")
 - Recent transactions ("Any recent trades?")
 
 For these questions, return JSON with empty queries and answer in the narrative_prompt:
