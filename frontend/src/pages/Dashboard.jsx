@@ -483,7 +483,7 @@ function HittingSummary({ hitters, getBenchmark, loading }) {
 // Section: Defense & Model Quality
 // ---------------------------------------------------------------------------
 
-function DefenseModelPanel({ teamStats, modelStatus, loading, standings }) {
+function DefenseModelPanel({ teamStats, loading, standings }) {
   const defenseStats = [
     { label: 'Team ERA', value: teamStats?.team_era, statName: 'era' },
     { label: 'True Pitching Quality', value: teamStats?.team_fip, statName: 'fip' },
@@ -499,7 +499,7 @@ function DefenseModelPanel({ teamStats, modelStatus, loading, standings }) {
         className="text-[11px] uppercase tracking-widest text-text-secondary mb-3"
         style={{ fontFamily: "'JetBrains Mono', monospace" }}
       >
-        DEFENSE & MODEL QUALITY
+        TEAM STATS & STANDINGS
       </h3>
 
       {loading ? (
@@ -525,33 +525,9 @@ function DefenseModelPanel({ teamStats, modelStatus, loading, standings }) {
             ))}
           </div>
 
-          {/* Model quality */}
-          <div className="pt-3 border-t border-white-8">
-            <h4 className="text-[9px] uppercase text-text-secondary tracking-wide mb-2"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              ML Model Status
-            </h4>
-
-            <ModelStatusRow
-              label="Game Outcome"
-              model="XGBoost"
-              status={modelStatus?.game_outcome?.status || 'model_not_trained'}
-            />
-            <ModelStatusRow
-              label="Win Trend"
-              model="Ridge"
-              status={modelStatus?.win_trend?.status || 'model_not_trained'}
-            />
-            <ModelStatusRow
-              label="Regression"
-              model="Z-score"
-              status={modelStatus?.regression_detection?.status || 'model_not_trained'}
-            />
-          </div>
-
           {/* NL Central Standings */}
           {standings?.length > 0 && (
-            <div className="pt-3 mt-3 border-t border-white-8">
+            <div className="pt-3 border-t border-white-8">
               <h4 className="text-[9px] uppercase text-text-secondary tracking-wide mb-2"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 NL Central
@@ -589,30 +565,6 @@ function DefenseModelPanel({ teamStats, modelStatus, loading, standings }) {
           )}
         </>
       )}
-    </div>
-  )
-}
-
-function ModelStatusRow({ label, model, status }) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <div className="flex items-center gap-2">
-        <span
-          className="w-1.5 h-1.5 rounded-full"
-          style={{ backgroundColor: '#34D399' }}
-        />
-        <span className="text-[10px] text-text-primary">{label}</span>
-        <span className="text-[8px] text-text-secondary">({model})</span>
-      </div>
-      <span
-        className="text-[9px] font-semibold"
-        style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          color: '#34D399',
-        }}
-      >
-        ACTIVE
-      </span>
     </div>
   )
 }
@@ -684,7 +636,6 @@ export default function Dashboard() {
   const { data: cubsPitching, loading: pitchLoading } = useApi('/pitching/cubs/enriched')
   const { data: cubsHitting, loading: hitLoading } = useApi('/hitting/cubs/enriched')
   const { getBenchmark, loading: benchLoading } = useBenchmarks()
-  const { data: modelStatus } = useApi('/predictions/model-status')
   const { data: liveContext } = useApi('/team/live-context')
 
   const isLoading = teamLoading || recordLoading || benchLoading
@@ -767,7 +718,6 @@ export default function Dashboard() {
         />
         <DefenseModelPanel
           teamStats={teamStats}
-          modelStatus={modelStatus}
           loading={teamLoading}
           standings={liveContext?.standings}
         />
