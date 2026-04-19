@@ -52,7 +52,7 @@ export default function BenchmarkGauge({
             style={{ left: `${avgPos}%` }}
           >
             <span
-              className="absolute top-[-16px] left-1/2 -translate-x-1/2 text-[9px] text-text-secondary whitespace-nowrap"
+              className="absolute top-[-16px] left-1/2 -translate-x-1/2 text-[9px] text-text-secondary whitespace-nowrap hidden md:inline"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
               MLB {mlbAvg != null ? (Number.isInteger(mlbAvg) ? mlbAvg : mlbAvg.toFixed(2)) : ''}
