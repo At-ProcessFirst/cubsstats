@@ -106,8 +106,10 @@ def main():
     db = SessionLocal()
 
     try:
-        # Check today AND yesterday (covers overnight games, timezone issues)
-        today = date.today()
+        # Use Central Time — Cubs are a Chicago team, Render runs UTC
+        from datetime import datetime, timezone
+        ct = timezone(timedelta(hours=-5))
+        today = datetime.now(ct).date()
         yesterday = today - timedelta(days=1)
 
         processed = 0

@@ -171,16 +171,13 @@ def _get_starter_era(game_pk: int, team_abbrev: str, season: int, db: Session) -
         return 4.00
 
     # Determine which starter ID to use based on team
+    starter_id = None
     if team_abbrev == game.home_team:
         starter_id = game.home_starter_id
     elif team_abbrev == game.away_team:
         starter_id = game.away_starter_id
-    else:
-        # Team abbreviation matches neither side — try Cubs-specific logic
-        if team_abbrev == "CHC":
-            starter_id = game.home_starter_id if game.cubs_home else game.away_starter_id
-        else:
-            starter_id = game.away_starter_id if game.cubs_home else game.home_starter_id
+    elif team_abbrev == "CHC" and game.cubs_home is not None:
+        starter_id = game.home_starter_id if game.cubs_home else game.away_starter_id
 
     if starter_id:
         ps = db.query(PitcherSeasonStats).filter(
@@ -221,6 +218,7 @@ def _get_streak(season: int, db: Session, before_date=None) -> float:
     """
     query = db.query(Game).filter(
         Game.season == season, Game.status == "final",
+        Game.cubs_won.isnot(None),
         ((Game.home_team == "CHC") | (Game.away_team == "CHC")),
     ).order_by(Game.game_date.desc())
 
