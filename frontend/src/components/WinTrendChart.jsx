@@ -75,7 +75,7 @@ export default function WinTrendChart({ data = [], summary }) {
             labelStyle={{ color: '#E8ECF4' }}
           />
           <Legend
-            wrapperStyle={{ fontSize: 10, fontFamily: "'JetBrains Mono'" }}
+            wrapperStyle={{ fontSize: 11, fontFamily: "'JetBrains Mono'", color: '#E8ECF4' }}
           />
 
           {/* Projected CI band */}
@@ -94,11 +94,11 @@ export default function WinTrendChart({ data = [], summary }) {
           {/* .500 pace */}
           <Line
             dataKey="pace500"
-            stroke="#8892A833"
+            stroke="#8892A888"
             strokeDasharray="6 4"
             dot={false}
             name=".500 pace"
-            strokeWidth={1}
+            strokeWidth={1.5}
           />
 
           {/* Pythagorean expected */}

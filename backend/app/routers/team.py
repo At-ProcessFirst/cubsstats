@@ -116,7 +116,10 @@ def get_win_trend(
     season: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
-    """Build win trend data for the chart: cumulative wins per game with Pythagorean + .500 pace."""
+    """Build win trend data for the chart: cumulative wins per game with Pythagorean + .500 pace + ML predicted."""
+    from app.services.ml_engine import predict_win_trend
+    from app.services.features import _rolling_pythag, _game_runs
+
     current_season = season or date.today().year
     games = db.query(Game).filter(
         Game.season == current_season,
@@ -154,10 +157,54 @@ def get_win_trend(
             "actual": cum_wins,
             "pythagorean": pythag,
             "pace500": round(i * 0.5, 1),
-            "predicted": None,  # ML prediction populated when model is active
+            "predicted": None,
             "ciLow": None,
             "ciHigh": None,
         })
+
+    # Overlay ML predicted win trend (needs 30+ games)
+    if len(games) >= 30:
+        try:
+            window = games[-30:]
+            pythag_wpct = _rolling_pythag(window, 30) or 0.500
+
+            # Compute simple trends from run data
+            ra_per_game = [_game_runs(g)[1] for g in window]
+            rs_per_game = [_game_runs(g)[0] for g in window]
+            import numpy as np
+            ra_slope = float(np.polyfit(range(len(ra_per_game)), ra_per_game, 1)[0]) if len(ra_per_game) >= 3 else 0.0
+            rs_slope = float(np.polyfit(range(len(rs_per_game)), rs_per_game, 1)[0]) if len(rs_per_game) >= 3 else 0.0
+
+            features = {
+                "rolling_30g_pythag_wpct": pythag_wpct,
+                "fip_trend": ra_slope,
+                "wrc_plus_trend": rs_slope,
+                "roster_war": 0.0,
+                "sos_remaining": 0.500,
+            }
+            result = predict_win_trend(features)
+            if result.get("status") == "active" and result.get("predicted_wins") is not None:
+                pred_wins = result["predicted_wins"]
+                ci_low = result.get("ci_lower", pred_wins - 1.5)
+                ci_high = result.get("ci_upper", pred_wins + 1.5)
+                current_wins = cum_wins
+                # Project from current game forward
+                for j in range(10):
+                    game_num = len(games) + j + 1
+                    projected = round(current_wins + (pred_wins * (j + 1) / 10), 1)
+                    trend.append({
+                        "game": game_num,
+                        "date": None,
+                        "actual": None,
+                        "pythagorean": None,
+                        "pace500": round(game_num * 0.5, 1),
+                        "predicted": projected,
+                        "ciLow": round(current_wins + (ci_low * (j + 1) / 10), 1),
+                        "ciHigh": round(current_wins + (ci_high * (j + 1) / 10), 1),
+                    })
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).debug(f"Win trend prediction failed: {e}")
 
     return trend
 
