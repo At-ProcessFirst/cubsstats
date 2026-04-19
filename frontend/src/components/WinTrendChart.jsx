@@ -81,9 +81,9 @@ export default function WinTrendChart({ data = [], summary }) {
           {/* Projected CI band */}
           <Area
             dataKey="ciHigh"
-            stroke="rgba(96,165,250, 0.3)"
-            strokeWidth={1}
-            fill="rgba(96,165,250, 0.20)"
+            stroke="rgba(96,165,250, 0.5)"
+            strokeWidth={1.5}
+            fill="rgba(96,165,250, 0.35)"
             name="Projected range"
           />
           <Area
